@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/ITM-Kitware/align-browser/compare/v0.6.0...v0.7.0) (2025-07-31)
+
+
+### Features
+
+* add expandable choice info display to UI ([754f6a0](https://github.com/ITM-Kitware/align-browser/commit/754f6a0550881cd1508b35556dd6f23f015241b8))
+* support direct experiment directory paths in CLI ([d5762c1](https://github.com/ITM-Kitware/align-browser/commit/d5762c11f50f35302eb3eaddc808965d061a30e8))
+
 ## [0.6.0](https://github.com/ITM-Kitware/align-browser/compare/v0.5.0...v0.6.0) (2025-07-22)
 
 
