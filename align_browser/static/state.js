@@ -3,6 +3,19 @@
 
 import { showWarning } from './notifications.js';
 
+// Centralized parameter mappings
+export const PARAMETER_MAPPINGS = {
+  // Maps validation API names back to internal names
+  API_TO_INTERNAL: {
+    'scenario': 'scenario',
+    'scene': 'scene',
+    'adm': 'admType',
+    'llm': 'llmBackbone',
+    'kdma_values': 'kdmas',
+    'run_variant': 'runVariant'
+  }
+};
+
 // Constants for KDMA processing
 const KDMA_CONSTANTS = {
   DECIMAL_PRECISION: 10, // For 1 decimal place normalization
@@ -82,7 +95,8 @@ export function createInitialState() {
     availableLLMs: [],
     
     // Comparison state
-    pinnedRuns: new Map()
+    pinnedRuns: new Map(),
+    linkedParameters: new Set()
   };
 }
 
@@ -127,7 +141,7 @@ export function createRunConfig(params, availableKDMAs) {
   }
   
   // Generate experiment key directly
-  const kdmaParts = KDMAUtils.toKeyParts(params.kdmaValues || {});
+  const kdmaParts = KDMAUtils.toKeyParts(params.kdmas || {});
   const kdmaString = kdmaParts.join("_");
   const experimentKey = `${params.admType}:${params.llmBackbone}:${kdmaString}:${params.runVariant}`;
   
@@ -139,7 +153,7 @@ export function createRunConfig(params, availableKDMAs) {
     admType: params.admType,
     llmBackbone: params.llmBackbone,
     runVariant: params.runVariant,
-    kdmaValues: { ...params.kdmaValues },
+    kdmas: { ...params.kdmas },
     experimentKey,
     loadStatus: 'pending',
     // Store available options at time of creation for dropdown population
@@ -170,13 +184,14 @@ export function encodeStateToURL(state) {
   const manifest = GlobalState.getManifest();
   const urlState = {
     manifestCreatedAt: manifest?.generated_at,
+    linkedParameters: Array.from(state.linkedParameters || []),
     pinnedRuns: Array.from(state.pinnedRuns.values()).map(run => ({
       scenario: run.scenario,
       scene: run.scene,
       admType: run.admType,
       llmBackbone: run.llmBackbone,
       runVariant: run.runVariant,
-      kdmaValues: run.kdmaValues,
+      kdmas: run.kdmas,
       id: run.id
     }))
   };
@@ -325,6 +340,82 @@ const updateParametersBase = (priorityOrder) => (manifest) => (currentParams, ch
 // Export updateParameters with priority order already curried
 export const updateParameters = updateParametersBase(PARAMETER_CONFIG.PRIORITY_ORDER);
 
+export function toggleParameterLink(paramName, appState, callbacks) {
+  if (appState.linkedParameters.has(paramName)) {
+    appState.linkedParameters.delete(paramName);
+    callbacks.renderTable();
+    callbacks.updateURL();
+    return null;
+  } else {
+    appState.linkedParameters.add(paramName);
+    // When enabling link, propagate the leftmost column's value
+    const firstRun = Array.from(appState.pinnedRuns.values())[0];
+    let propagationResult = null;
+    if (firstRun) {
+      const currentValue = getParameterValueFromRun(firstRun, paramName);
+      propagationResult = propagateParameterToAllRuns(paramName, currentValue, firstRun.id, appState, callbacks);
+    }
+    callbacks.renderTable();
+    callbacks.updateURL();
+    return propagationResult;
+  }
+}
+
+export function propagateParameterToAllRuns(paramName, value, sourceRunId, appState, callbacks) {
+  // Temporarily disable link for this parameter to prevent infinite loops
+  const wasLinked = appState.linkedParameters.has(paramName);
+  appState.linkedParameters.delete(paramName);
+  
+  // Parameters that require data reload when changed
+  const reloadRequiredParams = new Set([
+    'scenario', 'scene', 'admType', 'llmBackbone', 'kdmas', 'runVariant'
+  ]);
+  
+  const needsReload = reloadRequiredParams.has(paramName);
+  
+  // Collect run IDs that need reloading for the callback to handle
+  const runIdsToReload = [];
+  
+  appState.pinnedRuns.forEach((_, runId) => {
+    if (runId !== sourceRunId) {
+      callbacks.updateParameterForRun(runId, paramName, value, true);
+      
+      // If this parameter change requires data reload, collect the runId
+      if (needsReload) {
+        runIdsToReload.push(runId);
+      }
+    }
+  });
+  
+  // Re-enable link if it was previously enabled
+  if (wasLinked) {
+    appState.linkedParameters.add(paramName);
+  }
+  
+  // Return information for the caller to handle async operations
+  return {
+    needsReload,
+    runIdsToReload
+  };
+}
+
+export function getParameterValueFromRun(run, paramName) {
+  return run[paramName];
+}
+
+export function isParameterLinked(paramName, appState) {
+  return appState.linkedParameters.has(paramName);
+}
+
+// Helper function to identify result parameters (those that depend on experiment data)
+export function isResultParameter(paramName) {
+  const resultParams = new Set([
+    'scenario_state', 'available_choices', 'choice_info', 
+    'adm_decision', 'justification', 'probe_time', 'input_output_json'
+  ]);
+  return resultParams.has(paramName);
+}
+
 // Global state encapsulation
 const GlobalState = {
   manifest: null,
@@ -359,15 +450,15 @@ export async function loadManifest() {
 }
 
 
-function resolveParametersToRun(params) {
+export function resolveParametersToRun(params) {
   if (GlobalState.isParameterRunMapEmpty()) {
     console.warn('parameterRunMap is empty or not initialized');
     return undefined;
   }
   
-  const { scenario, scene, kdmaValues, admType, llmBackbone, runVariant } = params;
+  const { scenario, scene, kdmas, admType, llmBackbone, runVariant } = params;
   
-  const kdmaString = KDMAUtils.serializeToKey(kdmaValues || {});
+  const kdmaString = KDMAUtils.serializeToKey(kdmas || {});
   const mapKey = `${scenario}:${scene}:${kdmaString}:${admType}:${llmBackbone}:${runVariant}`;
   
   return GlobalState.getParameterRun(mapKey);
