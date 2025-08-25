@@ -875,3 +875,59 @@ footer {
 .parameter-row[data-category="choice_info"] {
   background: rgba(40, 167, 69, 0.08);
 }
+
+/* Sync functionality styles */
+.parameter-name-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.link-icon {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.link-toggle:hover .link-icon {
+  transform: scale(1.1);
+}
+
+.parameter-row.linked .link-icon {
+  color: var(--accent-color);
+}
+
+
+
+/* No data available styling */
+.no-data-message {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 8px;
+  background: #f8f9fa;
+  border: 1px dashed #dee2e6;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.no-data-reason {
+  font-size: 12px;
+  color: #868e96;
+  margin-top: 4px;
+}
+
+/* Invalid dropdown option styling */
+.invalid-option {
+  color: #dc3545;
+  font-style: italic;
+  background-color: rgba(220, 53, 69, 0.1);
+}
+

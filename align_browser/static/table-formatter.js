@@ -263,8 +263,22 @@ function toggleChoiceInfoSection(sectionId) {
 }
 
 
-// Make toggle function globally available for onclick handlers
+
+// One-time parameter propagation function
+function propagateParameterValue(paramName, sourceRunId) {
+  // This function will be called from the global scope, so we need to access the app state
+  if (window.appState && window.getParameterValueFromRun && window.propagateParameterToAllRuns) {
+    const sourceRun = window.appState.pinnedRuns.get(sourceRunId);
+    if (sourceRun) {
+      const value = window.getParameterValueFromRun(sourceRun, paramName);
+      window.propagateParameterToAllRuns(paramName, value, sourceRunId);
+    }
+  }
+}
+
+// Make functions globally available for onclick handlers
 window.toggleChoiceInfoSection = toggleChoiceInfoSection;
+window.propagateParameterValue = propagateParameterValue;
 
 // Constants
 const TEXT_PREVIEW_LENGTH = 800;
@@ -388,7 +402,10 @@ export function formatValue(value, type, paramName = '', runId = '', pinnedRuns 
   // Handle dropdown parameters for pinned runs
   if (runId !== '' && pinnedRuns && PARAMETER_DROPDOWN_HANDLERS[paramName]) {
     const handler = PARAMETER_DROPDOWN_HANDLERS[paramName];
-    return handler(runId, value, pinnedRuns);
+    const formattedValue = handler(runId, value, pinnedRuns);
+    
+    
+    return formattedValue;
   }
   
   switch (type) {
@@ -455,14 +472,25 @@ export function createDropdownForRun(runId, currentValue, options, pinnedRuns) {
   
   const sortedOptions = [...availableOptions].sort();
   
-  // Always disable dropdowns when there are few options
+  // Always include the current value even if it's not in the available options
+  let currentValueIsInvalid = false;
+  if (currentValue && !sortedOptions.includes(currentValue)) {
+    sortedOptions.push(currentValue);
+    sortedOptions.sort();
+    currentValueIsInvalid = true;
+  }
+  
+  // Always disable dropdowns when there are few options (excluding invalid current value)
   const isDisabled = availableOptions.length <= 1;
   const disabledAttr = isDisabled ? 'disabled' : '';
   
   let html = `<select class="${cssClass}" ${disabledAttr} onchange="${onChangeHandler}('${runId}', this.value)">`;
   sortedOptions.forEach(option => {
     const selected = option === currentValue ? 'selected' : '';
-    html += `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+    const isCurrentInvalidValue = currentValueIsInvalid && option === currentValue;
+    const optionClass = isCurrentInvalidValue ? 'class="invalid-option"' : '';
+    const optionTitle = isCurrentInvalidValue ? 'title="No matching experiment for this value"' : '';
+    html += `<option value="${escapeHtml(option)}" ${selected} ${optionClass} ${optionTitle}>${escapeHtml(option)}</option>`;
   });
   html += '</select>';
   
@@ -654,7 +682,7 @@ export function canRemoveSpecificKDMA(runId, kdmaType, pinnedRuns) {
   const run = pinnedRuns.get(runId);
   if (!run) return false;
   
-  const currentKDMAs = run.kdmaValues || {};
+  const currentKDMAs = run.kdmas || {};
   const kdmaOptions = run.availableOptions?.kdmas;
   if (!kdmaOptions || !kdmaOptions.validCombinations) {
     return false;
@@ -757,7 +785,7 @@ export function createKDMAControlsForRun(runId, currentKDMAs, pinnedRuns) {
 export function createSingleKDMAControlForRun(runId, kdmaType, value, pinnedRuns) {
   const availableKDMAs = getValidKDMAsForRun(runId, pinnedRuns);
   const run = pinnedRuns.get(runId);
-  const currentKDMAs = run.kdmaValues || {};
+  const currentKDMAs = run.kdmas || {};
   
   // Get available types (only those that can form valid combinations)
   const availableTypes = getValidKDMATypesForRun(runId, kdmaType, currentKDMAs, pinnedRuns);

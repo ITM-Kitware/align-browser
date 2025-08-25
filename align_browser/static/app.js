@@ -7,7 +7,13 @@ import {
   decodeStateFromURL,
   loadManifest,
   fetchRunData,
+  resolveParametersToRun,
   KDMAUtils,
+  toggleParameterLink,
+  propagateParameterToAllRuns,
+  getParameterValueFromRun,
+  isParameterLinked,
+  isResultParameter,
 } from './state.js';
 
 import {
@@ -20,6 +26,22 @@ import {
 
 // Constants
 const KDMA_SLIDER_DEBOUNCE_MS = 500;
+
+// Generic function to preserve linked parameters after validation
+function preserveLinkedParameters(validatedParams, originalParams, appState) {
+  const preserved = { ...validatedParams };
+  
+  // Iterate through all possible linked parameters
+  const linkableParams = ['scenario', 'scene', 'admType', 'llmBackbone', 'kdmas', 'runVariant'];
+  for (const paramName of linkableParams) {
+    if (isParameterLinked(paramName, appState)) {
+      // Preserve the original value for linked parameters
+      preserved[paramName] = originalParams[paramName];
+    }
+  }
+  
+  return preserved;
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   
@@ -44,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = window.updateAppParameters({
         scenario: params.scenario,
         scene: params.scene,
-        kdma_values: params.kdmaValues || {},
+        kdma_values: params.kdmas || {},
         adm: params.admType,
         llm: params.llmBackbone,
         run_variant: params.runVariant
@@ -83,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
           scene: run.scene,
           admType: run.admType,
           llmBackbone: run.llmBackbone,
-          kdmas: run.kdmaValues
+          kdmas: run.kdmas
         });
       }
       columnParameters.set(runId, defaultParams);
@@ -92,25 +114,40 @@ document.addEventListener("DOMContentLoaded", () => {
     return columnParameters.get(runId);
   }
   
+  // Sync functionality - create callback object for imported functions
+  const syncCallbacks = {
+    renderTable: () => renderComparisonTable(),
+    updateURL: () => urlState.updateURL(),
+    updateParameterForRun: updateParameterForRun,
+    reloadPinnedRun: reloadPinnedRun
+  };
+  
+  window.toggleParameterLink = (paramName) => {
+    const result = toggleParameterLink(paramName, appState, syncCallbacks);
+    
+    // Trigger async reloads if needed (fire-and-forget when enabling a link)
+    if (result && result.needsReload && result.runIdsToReload && result.runIdsToReload.length > 0) {
+      result.runIdsToReload.forEach(runId => {
+        reloadPinnedRun(runId).catch(error => {
+          console.error(`Error reloading run ${runId} after parameter link toggle:`, error);
+        });
+      });
+    }
+  };
+  window.getParameterValueFromRun = getParameterValueFromRun;
+  window.propagateParameterToAllRuns = (paramName, value, sourceRunId) => 
+    propagateParameterToAllRuns(paramName, value, sourceRunId, appState, syncCallbacks);
+  window.appState = appState;
+
   // Update a parameter for any run with validation and UI sync
-  function updateParameterForRun(runId, paramType, newValue) {
+  function updateParameterForRun(runId, paramType, newValue, isPropagatedUpdate = false) {
     const params = getParametersForRun(runId);
+    const run = appState.pinnedRuns.get(runId);
     
-    // Map parameter types to parameter structure fields
-    const paramMap = {
-      'scenario': 'scenario',
-      'scene': 'scene', 
-      'admType': 'admType',
-      'llmBackbone': 'llmBackbone',
-      'llm': 'llmBackbone', // alias
-      'kdmas': 'kdmas',
-      'runVariant': 'runVariant'
-    };
+    // Update the parameter directly since we're using camelCase consistently
+    params[paramType] = newValue;
     
-    const paramField = paramMap[paramType] || paramType;
-    params[paramField] = newValue;
-    
-    // Use updateAppParameters for validation instead of setParametersForRun
+    // Always call updateAppParameters to get updated options
     const stateParams = {
       scenario: params.scenario || null,
       scene: params.scene || null,
@@ -124,7 +161,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const validParams = result.params;
     const validOptions = result.options;
     
-    // Convert back to app.js format  
+    // For propagated updates of linked parameters, use raw values without validation
+    if (isPropagatedUpdate && isParameterLinked(paramType, appState)) {
+      // Use the raw params values (don't validate for propagated linked parameters)
+      columnParameters.set(runId, createParameterStructure(params));
+      
+      // Update the actual run state with raw values
+      run.scenario = params.scenario;
+      run.scene = params.scene;
+      run.admType = params.admType;
+      run.llmBackbone = params.llmBackbone;
+      run.runVariant = params.runVariant;
+      run.kdmas = params.kdmas;
+      
+      // Store the updated available options for UI dropdowns
+      run.availableOptions = {
+        scenarios: validOptions.scenario || [],
+        scenes: validOptions.scene || [],
+        admTypes: validOptions.adm || [],
+        llms: validOptions.llm || [],
+        runVariants: validOptions.run_variant || [],
+        kdmas: {
+          validCombinations: validOptions.kdma_values || []
+        }
+      };
+      
+      return params; // Return the raw params for propagated linked parameters
+    }
+    
+    // For direct user updates (including on linked parameters), always validate for proper cascading
+    // This ensures the source column gets valid parameter combinations
+    
+    // For unlinked parameters, use validated parameters
     const kdmas = validParams.kdma_values || {};
     
     const correctedParams = {
@@ -136,17 +204,19 @@ document.addEventListener("DOMContentLoaded", () => {
       runVariant: validParams.run_variant
     };
     
+    // Preserve any linked parameters - they should not be changed by validation
+    const finalParams = preserveLinkedParameters(correctedParams, params, appState);
+    
     // Store corrected parameters
-    columnParameters.set(runId, createParameterStructure(correctedParams));
+    columnParameters.set(runId, createParameterStructure(finalParams));
     
     // Update the actual run state
-    const run = appState.pinnedRuns.get(runId);
-    run.scenario = correctedParams.scenario;
-    run.scene = correctedParams.scene;
-    run.admType = correctedParams.admType;
-    run.llmBackbone = correctedParams.llmBackbone;
-    run.runVariant = correctedParams.runVariant;
-    run.kdmaValues = correctedParams.kdmas;
+    run.scenario = finalParams.scenario;
+    run.scene = finalParams.scene;
+    run.admType = finalParams.admType;
+    run.llmBackbone = finalParams.llmBackbone;
+    run.runVariant = finalParams.runVariant;
+    run.kdmas = finalParams.kdmas;
     
     // Store the available options for UI dropdowns
     run.availableOptions = {
@@ -160,7 +230,21 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
     
-    return correctedParams;
+    // If this is a linked parameter and this is a direct user update, propagate to other runs
+    if (!isPropagatedUpdate && isParameterLinked(paramType, appState)) {
+      const propagationResult = propagateParameterToAllRuns(paramType, newValue, runId, appState, syncCallbacks);
+      
+      // Trigger async reloads if needed (fire-and-forget)
+      if (propagationResult.needsReload && propagationResult.runIdsToReload.length > 0) {
+        propagationResult.runIdsToReload.forEach(runIdToReload => {
+          reloadPinnedRun(runIdToReload).catch(error => {
+            console.error(`Error reloading run ${runIdToReload}:`, error);
+          });
+        });
+      }
+    }
+    
+    return finalParams;
   }
 
   // URL State Management System
@@ -176,6 +260,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const state = decodeStateFromURL();
       
       if (state) {
+        // Restore link state
+        if (state.linkedParameters && Array.isArray(state.linkedParameters)) {
+          appState.linkedParameters = new Set(state.linkedParameters);
+        }
+        
         // Restore pinned runs
         if (state.pinnedRuns && state.pinnedRuns.length > 0) {
           for (const runConfig of state.pinnedRuns) {
@@ -187,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
               admType: runConfig.admType,
               llmBackbone: runConfig.llmBackbone,
               runVariant: runConfig.runVariant,
-              kdmaValues: runConfig.kdmaValues
+              kdmas: runConfig.kdmas
             };
             // Skip URL updates during batch restoration
             await addColumn(params, { updateURL: false });
@@ -223,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         admType: initialResult.params.adm,
         llmBackbone: initialResult.params.llm,
         runVariant: initialResult.params.run_variant,
-        kdmaValues: initialResult.params.kdma_values || {},
+        kdmas: initialResult.params.kdma_values || {},
         availableScenarios: initialResult.options.scenario || [],
         availableScenes: initialResult.options.scene || [], 
         availableAdmTypes: initialResult.options.adm || [],
@@ -260,49 +349,19 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   };
 
-  // Simple parameter change handlers - global for onclick access
   window.handleRunLLMChange = createParameterChangeHandler('llmBackbone', { updateUI: false });
   window.handleRunVariantChange = createParameterChangeHandler('runVariant');
   window.handleRunSceneChange = createParameterChangeHandler('scene');
   window.handleRunScenarioChange = createParameterChangeHandler('scenario');
 
-  // Handle ADM type change for pinned runs - global for onclick access
-  // Special case: preserves LLM preferences per ADM type
-  window.handleRunADMChange = async function(runId, newADM) {
-    const run = appState.pinnedRuns.get(runId);
-    
-    // Initialize LLM preferences for this run if not present
-    if (!run.llmPreferences) {
-      run.llmPreferences = {};
-    }
-    
-    // Store current LLM preference for the old ADM type
-    if (run.admType && run.llmBackbone) {
-      run.llmPreferences[run.admType] = run.llmBackbone;
-    }
-    
-    // Update ADM type with validation - this will also update available options
-    updateParameterForRun(runId, 'admType', newADM);
-    
-    // Try to restore LLM preference for the new ADM type
-    if (run.llmPreferences[newADM] && run.availableOptions?.llms?.includes(run.llmPreferences[newADM])) {
-      updateParameterForRun(runId, 'llmBackbone', run.llmPreferences[newADM]);
-    }
-    
-    await window.updatePinnedRunState({
-      runId,
-      needsReload: true,
-      updateUI: true
-    });
-  };
+  window.handleRunADMChange = createParameterChangeHandler('admType');
 
 
-  // Handle adding KDMA to pinned run - global for onclick access
   window.addKDMAToRun = async function(runId) {
     const run = appState.pinnedRuns.get(runId);
     
     const availableKDMAs = getValidKDMAsForRun(runId, appState.pinnedRuns);
-    const currentKDMAs = run.kdmaValues || {};
+    const currentKDMAs = run.kdmas || {};
     const maxKDMAs = getMaxKDMAsForRun(runId, appState.pinnedRuns);
     const minimumRequired = getMinimumRequiredKDMAs(runId, appState.pinnedRuns);
     
@@ -363,7 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const run = appState.pinnedRuns.get(runId);
     if (!run) return;
     
-    const currentKDMAs = { ...(run.kdmaValues || {}) };
+    const currentKDMAs = { ...(run.kdmas || {}) };
     const updatedKDMAs = modifier(currentKDMAs);
     
     await updatePinnedRunState({
@@ -376,7 +435,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Handle removing KDMA from pinned run - global for onclick access
   window.removeKDMAFromRun = async function(runId, kdmaType) {
     const run = appState.pinnedRuns.get(runId);
     const kdmaOptions = run?.availableOptions?.kdmas;
@@ -406,7 +464,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // Handle KDMA type change for pinned run - global for onclick access
   window.handleRunKDMATypeChange = async function(runId, oldKdmaType, newKdmaType) {
     const availableKDMAs = getValidKDMAsForRun(runId, appState.pinnedRuns);
     
@@ -430,7 +487,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // Handle KDMA slider input for pinned run - global for onclick access
   window.handleRunKDMASliderInput = async function(runId, kdmaType, sliderElement) {
     const run = appState.pinnedRuns.get(runId);
     if (!run) return;
@@ -478,29 +534,49 @@ document.addEventListener("DOMContentLoaded", () => {
     // Get updated parameters from columnParameters
     const params = getParametersForRun(runId);
     
+    // Always update run parameters to reflect the intended state first
+    run.scenario = params.scenario;
+    run.scene = params.scene;
+    run.admType = params.admType;
+    run.llmBackbone = params.llmBackbone;
+    run.runVariant = params.runVariant;
+    run.kdmas = { ...params.kdmas };
     
     try {
-      // Load new data using fetchRunData
+      // Check if parameters resolve to a valid run before attempting fetch
+      const runInfo = resolveParametersToRun({
+        scenario: params.scenario,
+        scene: params.scene,
+        admType: params.admType,
+        llmBackbone: params.llmBackbone,
+        kdmas: params.kdmas,
+        runVariant: params.runVariant
+      });
+      
+      if (!runInfo) {
+        // No matching experiment exists for this parameter combination
+        console.warn(`No experiment found for run ${runId} with current parameter combination`);
+        run.loadStatus = 'no-match';
+        run.noDataReason = 'No experiment exists for this parameter combination';
+        run.isReloading = false;
+        renderComparisonTable();
+        return;
+      }
+      
+      // Load new data using fetchRunData (we know it should work now)
       const experimentData = await fetchRunData({
         scenario: params.scenario,
         scene: params.scene,
         admType: params.admType,
         llmBackbone: params.llmBackbone,
-        kdmaValues: params.kdmas,
+        kdmas: params.kdmas,
         runVariant: params.runVariant
       });
       
-      // Always update run parameters to reflect the intended state
-      run.scenario = params.scenario;
-      run.scene = params.scene;
-      run.admType = params.admType;
-      run.llmBackbone = params.llmBackbone;
-      run.runVariant = params.runVariant;
-      run.kdmaValues = { ...params.kdmas };
-      
       if (!experimentData || !experimentData.inputOutput) {
-        console.error(`Failed to load data for run ${runId}: No data returned`);
-        run.loadStatus = 'error';
+        console.warn(`Failed to fetch data for run ${runId} despite valid runInfo`);
+        run.loadStatus = 'no-data';
+        run.noDataReason = 'Failed to load experiment data';
       } else {
         // Update with new results
         run.experimentKey = experimentData.experimentKey;
@@ -513,15 +589,8 @@ document.addEventListener("DOMContentLoaded", () => {
       
     } catch (error) {
       console.error(`Failed to reload data for run ${runId}:`, error);
-      
-      // Even on exception, update run parameters to reflect the intended state
-      run.scenario = params.scenario;
-      run.scene = params.scene;
-      run.admType = params.admType;
-      run.llmBackbone = params.llmBackbone;
-      run.runVariant = params.runVariant;
-      run.kdmaValues = { ...params.kdmas };
       run.loadStatus = 'error';
+      run.noDataReason = 'Error loading experiment data';
     } finally {
       // Clear the reloading flag
       run.isReloading = false;
@@ -567,10 +636,18 @@ document.addEventListener("DOMContentLoaded", () => {
       th.setAttribute('data-run-id', runId);
       th.setAttribute('data-experiment-key', runData.experimentKey || 'none');
       
+      // Add tooltip for no-match state
+      if (runData.loadStatus === 'no-match') {
+        th.title = runData.noDataReason || 'No matching experiment found';
+      }
+      
       // Always render button but control visibility to prevent layout shifts
       const shouldShowButton = index > 0 || appState.pinnedRuns.size > 1;
       const visibility = shouldShowButton ? 'visible' : 'hidden';
-      th.innerHTML = `<button class="remove-run-btn" onclick="removeRun('${runId}')" style="visibility: ${visibility};">×</button>`;
+      let headerContent = `<button class="remove-run-btn" onclick="removeRun('${runId}')" style="visibility: ${visibility};">×</button>`;
+      
+      
+      th.innerHTML = headerContent;
       
       thead.appendChild(th);
     });
@@ -582,10 +659,32 @@ document.addEventListener("DOMContentLoaded", () => {
       valueCells.forEach(cell => cell.remove());
     });
     
-    // Add pinned run values to each parameter row
+    // Update sync checkbox states and row visual indicators
     parameters.forEach((paramInfo, paramName) => {
       const row = tbody.querySelector(`tr[data-category="${paramName}"]`);
       if (!row) return;
+      
+      // Update link state visual indicators
+      const linkIcon = row.querySelector('.link-icon');
+      // Map snake_case parameter names to camelCase for link checking
+      const linkParamName = {
+        'adm_type': 'admType',
+        'llm_backbone': 'llmBackbone', 
+        'run_variant': 'runVariant',
+        'kdma_values': 'kdmas'
+      }[paramName] || paramName;
+      
+      if (isParameterLinked(linkParamName, appState)) {
+        row.classList.add('linked');
+        if (linkIcon) {
+          linkIcon.textContent = '🔗';
+        }
+      } else {
+        row.classList.remove('linked');
+        if (linkIcon) {
+          linkIcon.textContent = '⛓️‍💥';
+        }
+      }
       
       // Pinned run values with border if different from previous column
       let previousValue = null;
@@ -599,7 +698,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isDifferent) {
           td.style.borderLeft = '3px solid #007bff';
         }
-        td.innerHTML = formatValue(pinnedValue, paramInfo.type, paramName, runData.id, appState.pinnedRuns);
+        
+        // Handle no-data and no-match states for result parameters
+        if ((runData.loadStatus === 'no-data' || runData.loadStatus === 'no-match') && isResultParameter(paramName)) {
+          td.innerHTML = `<div class="no-data-message">No data available<div class="no-data-reason">${runData.noDataReason || 'No matching experiment found'}</div></div>`;
+        } else {
+          td.innerHTML = formatValue(pinnedValue, paramInfo.type, paramName, runData.id, appState.pinnedRuns);
+        }
         
         row.appendChild(td);
         
@@ -650,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // KDMA Values - single row showing all KDMA values
     if (paramName === 'kdma_values') {
-      return run.kdmaValues || {};
+      return run.kdmas || {};
     }
     
     // Scenario details
@@ -717,7 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
       admType: params.admType,
       llmBackbone: params.llmBackbone,
       runVariant: params.runVariant,
-      kdmaValues: params.kdmaValues
+      kdmas: params.kdmas
     });
     
     if (!runData || !runData.inputOutput) {
@@ -763,7 +868,7 @@ document.addEventListener("DOMContentLoaded", () => {
       admType: lastRun.admType,
       llmBackbone: lastRun.llmBackbone,
       runVariant: lastRun.runVariant,
-      kdmaValues: lastRun.kdmaValues,
+      kdmas: lastRun.kdmas,
       availableScenarios: lastRun.availableOptions?.scenarios || [],
       availableScenes: lastRun.availableOptions?.scenes || [],
       availableAdmTypes: lastRun.availableOptions?.admTypes || [],
@@ -927,7 +1032,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Make removePinnedRun globally accessible for onclick handlers
   window.removeRun = removeRun;
 
   // Initialize static button event listeners
