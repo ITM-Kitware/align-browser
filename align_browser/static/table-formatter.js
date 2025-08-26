@@ -151,7 +151,7 @@ export function createChoiceInfoDetails(key, value, runId = '') {
               
               const promptId = `icl_prompt_${runId}_${kdmaName}_${index}`;
               html += `<div class="icl-prompt">
-                <strong>Prompt:</strong> ${createExpandableContentWithLines(processedPrompt, promptId, 3)}
+                <strong>Prompt:</strong> <span style="white-space: pre-wrap;">${escapeHtml(processedPrompt)}</span>
               </div>`;
             }
             
