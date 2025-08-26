@@ -568,7 +568,7 @@ export function getMaxKDMAsForRun(runId, pinnedRuns) {
   const run = pinnedRuns.get(runId);
   if (!run) return 0;
   
-  const kdmaOptions = run.availableOptions?.kdmas;
+  const kdmaOptions = run.availableOptions?.kdmaValues;
   if (!kdmaOptions || !kdmaOptions.validCombinations) {
     return 1; // Default to at least 1 KDMA if no options available
   }
@@ -585,11 +585,11 @@ export function getMaxKDMAsForRun(runId, pinnedRuns) {
 // Get minimum required KDMAs for a run - if all combinations have the same count, return that count
 export function getMinimumRequiredKDMAs(runId, pinnedRuns) {
   const run = pinnedRuns.get(runId);
-  if (!run?.availableOptions?.kdmas?.validCombinations) {
+  if (!run?.availableOptions?.kdmaValues?.validCombinations) {
     return 1; // Default to 1 if no options available
   }
   
-  const combinations = run.availableOptions.kdmas.validCombinations;
+  const combinations = run.availableOptions.kdmaValues.validCombinations;
   if (combinations.length === 0) {
     return 1;
   }
@@ -617,13 +617,13 @@ export function getMinimumRequiredKDMAs(runId, pinnedRuns) {
 // Get valid KDMAs for a specific run
 export function getValidKDMAsForRun(runId, pinnedRuns) {
   const run = pinnedRuns.get(runId);
-  if (!run?.availableOptions?.kdmas?.validCombinations) {
+  if (!run?.availableOptions?.kdmaValues?.validCombinations) {
     return {};
   }
   
   // Extract all available types and values from valid combinations
   const availableOptions = {};
-  run.availableOptions.kdmas.validCombinations.forEach(combination => {
+  run.availableOptions.kdmaValues.validCombinations.forEach(combination => {
     Object.entries(combination).forEach(([kdmaType, value]) => {
       if (!availableOptions[kdmaType]) {
         availableOptions[kdmaType] = new Set();
@@ -638,7 +638,7 @@ export function getValidKDMAsForRun(runId, pinnedRuns) {
 // Get valid KDMA types that can be selected for a specific run  
 export function getValidKDMATypesForRun(runId, currentKdmaType, currentKDMAs, pinnedRuns) {
   const run = pinnedRuns.get(runId);
-  if (!run?.availableOptions?.kdmas?.validCombinations) {
+  if (!run?.availableOptions?.kdmaValues?.validCombinations) {
     return [currentKdmaType]; // Fallback to just current type
   }
   
@@ -665,7 +665,7 @@ export function getValidKDMATypesForRun(runId, currentKdmaType, currentKDMAs, pi
     }
     
     // Check if this combination exists in validCombinations
-    const isValidCombination = run.availableOptions.kdmas.validCombinations.some(combination => {
+    const isValidCombination = run.availableOptions.kdmaValues.validCombinations.some(combination => {
       return KDMAUtils.deepEqual(testKDMAs, combination);
     });
     
@@ -682,8 +682,8 @@ export function canRemoveSpecificKDMA(runId, kdmaType, pinnedRuns) {
   const run = pinnedRuns.get(runId);
   if (!run) return false;
   
-  const currentKDMAs = run.kdmas || {};
-  const kdmaOptions = run.availableOptions?.kdmas;
+  const currentKDMAs = run.kdmaValues || {};
+  const kdmaOptions = run.availableOptions?.kdmaValues;
   if (!kdmaOptions || !kdmaOptions.validCombinations) {
     return false;
   }
@@ -717,7 +717,7 @@ export function canRemoveSpecificKDMA(runId, kdmaType, pinnedRuns) {
 // Check if we can add another KDMA given current KDMA values
 export function canAddKDMAToRun(runId, currentKDMAs, pinnedRuns) {
   const run = pinnedRuns.get(runId);
-  if (!run?.availableOptions?.kdmas?.validCombinations) {
+  if (!run?.availableOptions?.kdmaValues?.validCombinations) {
     return false;
   }
   
@@ -732,7 +732,7 @@ export function canAddKDMAToRun(runId, currentKDMAs, pinnedRuns) {
   // Check if there are any valid combinations that:
   // 1. Include all current KDMAs with their exact values
   // 2. Have at least one additional KDMA
-  return run.availableOptions.kdmas.validCombinations.some(combination => {
+  return run.availableOptions.kdmaValues.validCombinations.some(combination => {
     
     const combinationKeys = Object.keys(combination);
     if (combinationKeys.length <= currentKDMAEntries.length) {
@@ -785,7 +785,7 @@ export function createKDMAControlsForRun(runId, currentKDMAs, pinnedRuns) {
 export function createSingleKDMAControlForRun(runId, kdmaType, value, pinnedRuns) {
   const availableKDMAs = getValidKDMAsForRun(runId, pinnedRuns);
   const run = pinnedRuns.get(runId);
-  const currentKDMAs = run.kdmas || {};
+  const currentKDMAs = run.kdmaValues || {};
   
   // Get available types (only those that can form valid combinations)
   const availableTypes = getValidKDMATypesForRun(runId, kdmaType, currentKDMAs, pinnedRuns);
