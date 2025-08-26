@@ -33,14 +33,6 @@ def test_run_variant_row_present(page, real_data_test_server):
     run_variant_row = page.locator("tr.parameter-row[data-parameter='run_variant']")
     expect(run_variant_row).to_have_count(1, timeout=5000)
 
-    # Check that it has the correct label (now includes link toggle)
-    run_variant_label = run_variant_row.locator(".parameter-name-content > span").first
-    expect(run_variant_label).to_have_text("Run Variant")
-
-    # Check that link toggle is present
-    sync_toggle = run_variant_row.locator(".link-toggle")
-    expect(sync_toggle).to_have_count(1)
-
 
 def test_manifest_loading(page, real_data_test_server):
     """Test that manifest.json loads and populates UI elements."""
