@@ -202,8 +202,6 @@ footer {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 .choice-card {
@@ -286,7 +284,6 @@ footer {
   border-radius: 4px;
   border: 1px solid #e9ecef;
   margin: 4px 0;
-  max-height: 150px;
   overflow-y: auto;
   max-width: 100%;
   overflow-x: auto;
@@ -294,11 +291,6 @@ footer {
   word-break: break-all;
 }
 
-/* Make Raw Data section much taller for better JSON viewing */
-.parameter-row[data-parameter="input_output_json"] .object-display pre {
-  max-height: 400px;
-  min-height: 200px;
-}
 
 .kdma-values-display {
   display: flex;
@@ -669,8 +661,6 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 .choice-info-section-header {
