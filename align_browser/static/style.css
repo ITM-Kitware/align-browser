@@ -931,3 +931,29 @@ footer {
   background-color: rgba(220, 53, 69, 0.1);
 }
 
+/* Loading spinner styles */
+.loading-spinner {
+  display: inline-block;
+  margin-left: 10px;
+  vertical-align: baseline;
+  width: 16px;
+  height: 16px;
+  position: relative;
+  top: -2px; /* Fine-tune vertical position */
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+

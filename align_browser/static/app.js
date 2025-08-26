@@ -514,6 +514,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+  // Show/hide loading spinner
+  function showLoadingSpinner() {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) {
+      spinner.style.visibility = 'visible';
+    }
+  }
+  
+  function hideLoadingSpinner() {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) {
+      spinner.style.visibility = 'hidden';
+    }
+  }
+
   // Reload data for a specific pinned run after parameter changes (pure approach)
   async function reloadPinnedRun(runId) {
     const run = appState.pinnedRuns.get(runId);
@@ -530,9 +545,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Mark as reloading to prevent concurrent requests
     run.isReloading = true;
     
-    // Show loading state
+    // Show loading spinner instead of rendering the whole table
     run.loadStatus = 'loading';
-    renderComparisonTable();
+    showLoadingSpinner();
 
     // Get updated parameters from columnParameters
     const params = getParametersForRun(runId);
@@ -605,6 +620,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Render the comparison table with pinned runs only
   function renderComparisonTable() {
+    // Hide loading spinner when rendering is complete
+    hideLoadingSpinner();
+    
     const container = document.getElementById('runs-container');
     if (!container) return;
     
@@ -1016,11 +1034,12 @@ document.addEventListener("DOMContentLoaded", () => {
         // Reload data if needed
         if (needsReload && runId) {
           await reloadPinnedRun(runId);
-        }
-
-        // Update UI if requested
-        if (updateUI) {
-          renderComparisonTable();
+          // reloadPinnedRun already calls renderComparisonTable, so skip the updateUI render
+        } else {
+          // Update UI if requested (only if we didn't reload, which already renders)
+          if (updateUI) {
+            renderComparisonTable();
+          }
         }
 
         // Update URL state if requested
