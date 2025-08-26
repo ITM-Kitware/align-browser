@@ -264,21 +264,9 @@ function toggleChoiceInfoSection(sectionId) {
 
 
 
-// One-time parameter propagation function
-function propagateParameterValue(paramName, sourceRunId) {
-  // This function will be called from the global scope, so we need to access the app state
-  if (window.appState && window.getParameterValueFromRun && window.propagateParameterToAllRuns) {
-    const sourceRun = window.appState.pinnedRuns.get(sourceRunId);
-    if (sourceRun) {
-      const value = window.getParameterValueFromRun(sourceRun, paramName);
-      window.propagateParameterToAllRuns(paramName, value, sourceRunId);
-    }
-  }
-}
 
 // Make functions globally available for onclick handlers
 window.toggleChoiceInfoSection = toggleChoiceInfoSection;
-window.propagateParameterValue = propagateParameterValue;
 
 // Constants
 const TEXT_PREVIEW_LENGTH = 800;
