@@ -18,8 +18,8 @@ def wait_for_run_results_loaded(page, timeout=3000):
     """Wait for run results to be loaded by checking for actual experiment data."""
     page.wait_for_function(
         """() => {
-            const probeTimeCells = document.querySelectorAll('tr[data-category="probe_time"] td');
-            const justificationCells = document.querySelectorAll('tr[data-category="justification"] td');
+            const probeTimeCells = document.querySelectorAll('tr[data-parameter="probe_time"] td');
+            const justificationCells = document.querySelectorAll('tr[data-parameter="justification"] td');
             // Should have at least 2 cells (parameter name + value) and value should not be empty
             return probeTimeCells.length > 1 && justificationCells.length > 1 &&
                    probeTimeCells[1].textContent.trim() !== '' &&
@@ -34,18 +34,18 @@ def get_experiment_data(page):
     result = {}
 
     # Get probe time
-    probe_time_cells = page.locator('tr[data-category="probe_time"] td').all()
+    probe_time_cells = page.locator('tr[data-parameter="probe_time"] td').all()
     if len(probe_time_cells) > 1:
         result["probe_time"] = probe_time_cells[1].text_content().strip()
 
     # Get justification (first 100 chars to avoid truncation differences)
-    justification_cells = page.locator('tr[data-category="justification"] td').all()
+    justification_cells = page.locator('tr[data-parameter="justification"] td').all()
     if len(justification_cells) > 1:
         full_justification = justification_cells[1].text_content().strip()
         result["justification"] = full_justification[:100] if full_justification else ""
 
     # Get decision/action
-    action_cells = page.locator('tr[data-category="action"] td').all()
+    action_cells = page.locator('tr[data-parameter="action"] td').all()
     if len(action_cells) > 1:
         result["action"] = action_cells[1].text_content().strip()
 
@@ -800,7 +800,7 @@ def test_run_variant_dropdown_functionality(page, real_data_test_server):
     )
 
     # Look for run variant row
-    run_variant_row = page.locator(".parameter-row[data-category='run_variant']")
+    run_variant_row = page.locator(".parameter-row[data-parameter='run_variant']")
     expect(run_variant_row).to_be_visible()
 
     # Check if run variant dropdown exists
@@ -861,7 +861,7 @@ def test_run_variant_dropdown_functionality(page, real_data_test_server):
 
             # Check that the run variant cell doesn't show "N/A"
             run_variant_cell = page.locator(
-                ".parameter-row[data-category='run_variant'] td"
+                ".parameter-row[data-parameter='run_variant'] td"
             ).nth(1)
             cell_text = run_variant_cell.text_content()
             assert "N/A" not in cell_text, (
@@ -882,7 +882,7 @@ def test_run_variant_dropdown_functionality(page, real_data_test_server):
     else:
         # If no dropdown, should show a static value
         run_variant_cell = page.locator(
-            ".parameter-row[data-category='run_variant'] td"
+            ".parameter-row[data-parameter='run_variant'] td"
         ).nth(1)
         cell_text = run_variant_cell.text_content()
         print(f"Run variant shows static value: {cell_text}")

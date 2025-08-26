@@ -30,7 +30,7 @@ def test_run_variant_row_present(page, real_data_test_server):
     page.wait_for_selector(".comparison-table", timeout=10000)
 
     # Check that the run_variant parameter row exists
-    run_variant_row = page.locator("tr.parameter-row[data-category='run_variant']")
+    run_variant_row = page.locator("tr.parameter-row[data-parameter='run_variant']")
     expect(run_variant_row).to_have_count(1, timeout=5000)
 
     # Check that it has the correct label (now includes link toggle)
@@ -565,7 +565,7 @@ def test_link_functionality(page, real_data_test_server):
         page.wait_for_timeout(1000)  # Wait for column to be added
 
     # Test that link toggle exists for scenario
-    scenario_row = page.locator("tr.parameter-row[data-category='scenario']")
+    scenario_row = page.locator("tr.parameter-row[data-parameter='scenario']")
     link_toggle_label = scenario_row.locator(".link-toggle")
     expect(link_toggle_label).to_have_count(1)
 
@@ -617,7 +617,7 @@ def test_linked_parameter_updates_run_data(page, real_data_test_server):
     )
 
     # Link the scenario parameter
-    scenario_row = page.locator("tr.parameter-row[data-category='scenario']")
+    scenario_row = page.locator("tr.parameter-row[data-parameter='scenario']")
     link_toggle = scenario_row.locator(".link-toggle")
     link_toggle.click()
     page.wait_for_timeout(500)
@@ -653,7 +653,7 @@ def test_linked_parameter_updates_run_data(page, real_data_test_server):
     # Get initial run data from both columns (look for ADM decision or justification)
     initial_data_col1 = None
 
-    adm_decision_row = page.locator("tr.parameter-row[data-category='adm_decision']")
+    adm_decision_row = page.locator("tr.parameter-row[data-parameter='adm_decision']")
     if adm_decision_row.count() > 0:
         decision_cells = adm_decision_row.locator("td.pinned-run-value")
         if decision_cells.count() >= 2:
@@ -686,8 +686,8 @@ def test_linked_parameter_updates_run_data(page, real_data_test_server):
 
     # Verify both columns have updated run data (not just parameter values)
     # Check how many run data columns we actually have
-    adm_decision_row = page.locator("tr.parameter-row[data-category='adm_decision']")
-    justification_row = page.locator("tr.parameter-row[data-category='justification']")
+    adm_decision_row = page.locator("tr.parameter-row[data-parameter='adm_decision']")
+    justification_row = page.locator("tr.parameter-row[data-parameter='justification']")
 
     data_verified = False
 
