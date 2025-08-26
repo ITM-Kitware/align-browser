@@ -11,7 +11,7 @@ export const PARAMETER_MAPPINGS = {
     'scene': 'scene',
     'adm': 'admType',
     'llm': 'llmBackbone',
-    'kdma_values': 'kdmas',
+    'kdma_values': 'kdmaValues',
     'run_variant': 'runVariant'
   }
 };
@@ -141,7 +141,7 @@ export function createRunConfig(params, availableKDMAs) {
   }
   
   // Generate experiment key directly
-  const kdmaParts = KDMAUtils.toKeyParts(params.kdmas || {});
+  const kdmaParts = KDMAUtils.toKeyParts(params.kdmaValues || {});
   const kdmaString = kdmaParts.join("_");
   const experimentKey = `${params.admType}:${params.llmBackbone}:${kdmaString}:${params.runVariant}`;
   
@@ -153,7 +153,7 @@ export function createRunConfig(params, availableKDMAs) {
     admType: params.admType,
     llmBackbone: params.llmBackbone,
     runVariant: params.runVariant,
-    kdmas: { ...params.kdmas },
+    kdmaValues: { ...params.kdmaValues },
     experimentKey,
     loadStatus: 'pending',
     // Store available options at time of creation for dropdown population
@@ -162,7 +162,7 @@ export function createRunConfig(params, availableKDMAs) {
       scenes: params.availableScenes || [],
       admTypes: params.availableAdmTypes || [],
       llms: params.availableLLMs || [],
-      kdmas: kdmaStructure  // Sophisticated structure with constraint information
+      kdmaValues: kdmaStructure  // Sophisticated structure with constraint information
     }
   };
 }
@@ -175,7 +175,7 @@ export function createParameterStructure(params = {}) {
     admType: params.admType || null,
     llmBackbone: params.llmBackbone || null,
     runVariant: params.runVariant || 'default',
-    kdmas: params.kdmas || {}
+    kdmaValues: params.kdmaValues || {}
   };
 }
 
@@ -191,7 +191,7 @@ export function encodeStateToURL(state) {
       admType: run.admType,
       llmBackbone: run.llmBackbone,
       runVariant: run.runVariant,
-      kdmas: run.kdmas,
+      kdmaValues: run.kdmaValues,
       id: run.id
     }))
   };
@@ -368,7 +368,7 @@ export function propagateParameterToAllRuns(paramName, value, sourceRunId, appSt
   
   // Parameters that require data reload when changed
   const reloadRequiredParams = new Set([
-    'scenario', 'scene', 'admType', 'llmBackbone', 'kdmas', 'runVariant'
+    'scenario', 'scene', 'admType', 'llmBackbone', 'kdmaValues', 'runVariant'
   ]);
   
   const needsReload = reloadRequiredParams.has(paramName);
@@ -456,9 +456,9 @@ export function resolveParametersToRun(params) {
     return undefined;
   }
   
-  const { scenario, scene, kdmas, admType, llmBackbone, runVariant } = params;
+  const { scenario, scene, kdmaValues, admType, llmBackbone, runVariant } = params;
   
-  const kdmaString = KDMAUtils.serializeToKey(kdmas || {});
+  const kdmaString = KDMAUtils.serializeToKey(kdmaValues || {});
   const mapKey = `${scenario}:${scene}:${kdmaString}:${admType}:${llmBackbone}:${runVariant}`;
   
   return GlobalState.getParameterRun(mapKey);

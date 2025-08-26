@@ -32,7 +32,7 @@ function preserveLinkedParameters(validatedParams, originalParams, appState) {
   const preserved = { ...validatedParams };
   
   // Iterate through all possible linked parameters
-  const linkableParams = ['scenario', 'scene', 'admType', 'llmBackbone', 'kdmas', 'runVariant'];
+  const linkableParams = ['scenario', 'scene', 'admType', 'llmBackbone', 'kdmaValues', 'runVariant'];
   for (const paramName of linkableParams) {
     if (isParameterLinked(paramName, appState)) {
       // Preserve the original value for linked parameters
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = window.updateAppParameters({
         scenario: params.scenario,
         scene: params.scene,
-        kdma_values: params.kdmas || {},
+        kdma_values: params.kdmaValues || {},
         adm: params.admType,
         llm: params.llmBackbone,
         run_variant: params.runVariant
@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
           scene: run.scene,
           admType: run.admType,
           llmBackbone: run.llmBackbone,
-          kdmas: run.kdmas
+          kdmaValues: run.kdmaValues
         });
       }
       columnParameters.set(runId, defaultParams);
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const stateParams = {
       scenario: params.scenario || null,
       scene: params.scene || null,
-      kdma_values: params.kdmas || {},
+      kdma_values: params.kdmaValues || {},
       adm: params.admType || null,
       llm: params.llmBackbone || null,
       run_variant: params.runVariant || null
@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
       run.admType = params.admType;
       run.llmBackbone = params.llmBackbone;
       run.runVariant = params.runVariant;
-      run.kdmas = params.kdmas;
+      run.kdmaValues = params.kdmaValues;
       
       // Store the updated available options for UI dropdowns
       run.availableOptions = {
@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
         admTypes: validOptions.adm || [],
         llms: validOptions.llm || [],
         runVariants: validOptions.run_variant || [],
-        kdmas: {
+        kdmaValues: {
           validCombinations: validOptions.kdma_values || []
         }
       };
@@ -193,14 +193,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // This ensures the source column gets valid parameter combinations
     
     // For unlinked parameters, use validated parameters
-    const kdmas = validParams.kdma_values || {};
+    const kdmaValues = validParams.kdma_values || {};
     
     const correctedParams = {
       scenario: validParams.scenario,
       scene: validParams.scene,
       admType: validParams.adm,
       llmBackbone: validParams.llm,
-      kdmas: kdmas,
+      kdmaValues: kdmaValues,
       runVariant: validParams.run_variant
     };
     
@@ -216,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
     run.admType = finalParams.admType;
     run.llmBackbone = finalParams.llmBackbone;
     run.runVariant = finalParams.runVariant;
-    run.kdmas = finalParams.kdmas;
+    run.kdmaValues = finalParams.kdmaValues;
     
     // Store the available options for UI dropdowns
     run.availableOptions = {
@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
       admTypes: validOptions.adm || [],
       llms: validOptions.llm || [],
       runVariants: validOptions.run_variant || [],
-      kdmas: {
+      kdmaValues: {
         validCombinations: validOptions.kdma_values || []
       }
     };
@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
               admType: runConfig.admType,
               llmBackbone: runConfig.llmBackbone,
               runVariant: runConfig.runVariant,
-              kdmas: runConfig.kdmas
+              kdmaValues: runConfig.kdmaValues
             };
             // Skip URL updates during batch restoration
             await addColumn(params, { updateURL: false });
@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         admType: initialResult.params.adm,
         llmBackbone: initialResult.params.llm,
         runVariant: initialResult.params.run_variant,
-        kdmas: initialResult.params.kdma_values || {},
+        kdmaValues: initialResult.params.kdma_values || {},
         availableScenarios: initialResult.options.scenario || [],
         availableScenes: initialResult.options.scene || [], 
         availableAdmTypes: initialResult.options.adm || [],
@@ -361,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const run = appState.pinnedRuns.get(runId);
     
     const availableKDMAs = getValidKDMAsForRun(runId, appState.pinnedRuns);
-    const currentKDMAs = run.kdmas || {};
+    const currentKDMAs = run.kdmaValues || {};
     const maxKDMAs = getMaxKDMAsForRun(runId, appState.pinnedRuns);
     const minimumRequired = getMinimumRequiredKDMAs(runId, appState.pinnedRuns);
     
@@ -373,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // If we have no KDMAs and need to add multiple at once for a valid combination
     if (Object.keys(currentKDMAs).length === 0 && minimumRequired > 1) {
       // Add a complete valid combination
-      const validCombinations = run.availableOptions?.kdmas?.validCombinations || [];
+      const validCombinations = run.availableOptions?.kdmaValues?.validCombinations || [];
       if (validCombinations.length > 0) {
         // Find the first non-empty combination (skip unaligned empty combinations)
         const firstNonEmptyCombination = validCombinations.find(combination => Object.keys(combination).length > 0);
@@ -381,7 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (firstNonEmptyCombination) {
           await updatePinnedRunState({
             runId,
-            parameter: 'kdmas',
+            parameter: 'kdmaValues',
             value: { ...firstNonEmptyCombination },
             needsReload: true,
             updateUI: true
@@ -410,7 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     await updatePinnedRunState({
       runId,
-      parameter: 'kdmas',
+      parameter: 'kdmaValues',
       value: newKDMAs,
       needsReload: true,
       updateUI: true
@@ -422,12 +422,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const run = appState.pinnedRuns.get(runId);
     if (!run) return;
     
-    const currentKDMAs = { ...(run.kdmas || {}) };
+    const currentKDMAs = { ...(run.kdmaValues || {}) };
     const updatedKDMAs = modifier(currentKDMAs);
     
     await updatePinnedRunState({
       runId,
-      parameter: 'kdmas',
+      parameter: 'kdmaValues',
       value: updatedKDMAs,
       needsReload: true,
       updateUI: true,
@@ -437,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.removeKDMAFromRun = async function(runId, kdmaType) {
     const run = appState.pinnedRuns.get(runId);
-    const kdmaOptions = run?.availableOptions?.kdmas;
+    const kdmaOptions = run?.availableOptions?.kdmaValues;
     
     await updateKDMAsForRun(runId, (kdmas) => {
       const updated = { ...kdmas };
@@ -540,7 +540,7 @@ document.addEventListener("DOMContentLoaded", () => {
     run.admType = params.admType;
     run.llmBackbone = params.llmBackbone;
     run.runVariant = params.runVariant;
-    run.kdmas = { ...params.kdmas };
+    run.kdmaValues = { ...params.kdmaValues };
     
     try {
       // Check if parameters resolve to a valid run before attempting fetch
@@ -549,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
         scene: params.scene,
         admType: params.admType,
         llmBackbone: params.llmBackbone,
-        kdmas: params.kdmas,
+        kdmaValues: params.kdmaValues,
         runVariant: params.runVariant
       });
       
@@ -569,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
         scene: params.scene,
         admType: params.admType,
         llmBackbone: params.llmBackbone,
-        kdmas: params.kdmas,
+        kdmaValues: params.kdmaValues,
         runVariant: params.runVariant
       });
       
@@ -671,7 +671,7 @@ document.addEventListener("DOMContentLoaded", () => {
         'adm_type': 'admType',
         'llm_backbone': 'llmBackbone', 
         'run_variant': 'runVariant',
-        'kdma_values': 'kdmas'
+        'kdma_values': 'kdmaValues'
       }[paramName] || paramName;
       
       if (isParameterLinked(linkParamName, appState)) {
@@ -755,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // KDMA Values - single row showing all KDMA values
     if (paramName === 'kdma_values') {
-      return run.kdmas || {};
+      return run.kdmaValues || {};
     }
     
     // Scenario details
@@ -822,7 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
       admType: params.admType,
       llmBackbone: params.llmBackbone,
       runVariant: params.runVariant,
-      kdmas: params.kdmas
+      kdmaValues: params.kdmaValues
     });
     
     if (!runData || !runData.inputOutput) {
@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", () => {
       admType: lastRun.admType,
       llmBackbone: lastRun.llmBackbone,
       runVariant: lastRun.runVariant,
-      kdmas: lastRun.kdmas,
+      kdmaValues: lastRun.kdmaValues,
       availableScenarios: lastRun.availableOptions?.scenarios || [],
       availableScenes: lastRun.availableOptions?.scenes || [],
       availableAdmTypes: lastRun.availableOptions?.admTypes || [],
