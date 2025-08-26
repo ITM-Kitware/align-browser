@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
     objects: new Map() // parameterName -> isExpanded
   };
   
+  // Expose to global window for table-formatter.js access
+  window.expandableStates = expandableStates;
+  
   // Central application state initialized with functional state
   let appState = {
     ...createInitialState()
@@ -604,6 +607,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderComparisonTable() {
     const container = document.getElementById('runs-container');
     if (!container) return;
+    
+    // Save current Choice Info expansion states before re-rendering
+    const savedChoiceInfoStates = new Map();
+    for (const [key, value] of expandableStates.objects.entries()) {
+      if (key.startsWith('choice_info_section_')) {
+        savedChoiceInfoStates.set(key, value);
+      }
+    }
 
     // Get all pinned runs for comparison
     const allRuns = Array.from(appState.pinnedRuns.values());
@@ -712,6 +723,27 @@ document.addEventListener("DOMContentLoaded", () => {
         isFirstColumn = false;
       });
     });
+    
+    // Restore saved Choice Info expansion states after re-rendering
+    setTimeout(() => {
+      for (const [sectionId, wasExpanded] of savedChoiceInfoStates.entries()) {
+        if (wasExpanded) {
+          const button = document.getElementById(`${sectionId}_button`);
+          const detailsDiv = document.getElementById(`${sectionId}_details`);
+          const summarySpan = document.getElementById(`${sectionId}_summary`);
+          
+          if (button && detailsDiv && summarySpan) {
+            // Restore the expanded state
+            detailsDiv.style.display = 'block';
+            summarySpan.style.display = 'none';
+            button.textContent = 'Hide Details';
+            
+            // Also update the global state
+            expandableStates.objects.set(sectionId, true);
+          }
+        }
+      }
+    }, 0);
   }
 
   // Extract parameters from all runs to determine table structure

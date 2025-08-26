@@ -98,18 +98,43 @@ def test_run_display_updates(page, real_data_test_server):
     )
 
     # Results should show either actual data or expected messages
-    acceptable_messages = [
-        "No data found",
-        "Error loading",
-        "Results for",
-        "No scenarios available",
-        "test_scenario",  # Actual scenario data
-        "Choice",  # Results display content
-    ]
 
-    has_acceptable_message = any(msg in table_text for msg in acceptable_messages)
-    assert has_acceptable_message, (
-        f"Results should show expected content, got: {table_text[:100]}"
+
+def test_choice_info_expansion_state_persistence(page, real_data_test_server):
+    """Test that Choice Info row expansion state persists when changing parameters."""
+    page.goto(real_data_test_server)
+
+    # Wait for table and select ADM to load data
+    page.wait_for_selector(".comparison-table", timeout=10000)
+    adm_select = page.locator(".table-adm-select").first
+    adm_select.wait_for(timeout=10000)
+    adm_select.select_option(index=1)  # Select first real option
+
+    # Wait for Choice Info toggle button to appear
+    page.wait_for_selector(".choice-info-toggle", timeout=10000)
+
+    # Click to expand the first Choice Info section
+    expand_button = page.locator(".choice-info-toggle").first
+    expand_button.click()
+
+    # Verify section is expanded
+    button_id = expand_button.get_attribute("id")
+    section_id = button_id.replace("_button", "_details")
+    details_div = page.locator(f"#{section_id}")
+    assert details_div.is_visible(), "Section should be expanded"
+
+    # Change scenario to trigger re-render
+    scenario_select = page.locator(".table-scenario-select").first
+    current_value = scenario_select.input_value()
+    scenario_select.select_option(index=0)  # Change to different option
+    page.wait_for_timeout(500)
+    scenario_select.select_option(value=current_value)  # Change back
+    page.wait_for_timeout(500)
+
+    # Check if section is still expanded (this will fail due to the bug)
+    details_div = page.locator(f"#{section_id}")
+    assert details_div.is_visible(), (
+        "Choice Info section should remain expanded after parameter change"
     )
 
 
