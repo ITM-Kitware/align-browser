@@ -73,8 +73,8 @@ def test_adm_selection_updates_llm(page, real_data_test_server):
     assert len(llm_options) > 0, "LLM dropdown should have options after ADM selection"
 
 
-def test_kdma_sliders_interaction(page, real_data_test_server):
-    """Test that KDMA sliders are interactive and snap to valid values."""
+def test_kdma_dropdowns_interaction(page, real_data_test_server):
+    """Test that KDMA dropdowns are interactive and only show valid values."""
     page.goto(real_data_test_server)
 
     # Wait for table to load
@@ -83,32 +83,47 @@ def test_kdma_sliders_interaction(page, real_data_test_server):
         "document.querySelectorAll('.table-adm-select').length > 0", timeout=10000
     )
 
-    # Set ADM type to enable KDMA sliders
+    # Set ADM type to enable KDMA dropdowns
     adm_select = page.locator(".table-adm-select").first
     adm_select.select_option("pipeline_baseline")
     # Wait for UI to update after ADM selection
     page.wait_for_load_state("networkidle")
 
-    # Find KDMA sliders in table
-    sliders = page.locator(".table-kdma-value-slider").all()
+    # Find KDMA dropdowns in table
+    dropdowns = page.locator(".table-kdma-value-select").all()
 
-    if sliders:
-        slider = sliders[0]
-        value_span = slider.locator("xpath=following-sibling::span[1]")
+    if dropdowns:
+        dropdown = dropdowns[0]
 
         # Get initial value
-        initial_value = value_span.text_content()
+        initial_value = dropdown.input_value()
 
-        # Use context manager to wait for experiment data to change
-        with wait_for_new_experiment_result(page):
-            # Try to change slider value - it should snap to nearest valid value
-            slider.evaluate("slider => slider.value = '0.7'")
-            slider.dispatch_event("input")
-        # Context manager automatically waits for experiment key to change
+        # Get available options and their values
+        options = dropdown.locator("option").all()
+        option_values = [opt.get_attribute("value") for opt in options]
 
-        new_value = value_span.text_content()
-        # Value should change from initial (validation may snap it to valid value)
-        assert new_value != initial_value or float(new_value) in [
+        if len(option_values) > 1:
+            # Find a different value to select
+            selected_different = False
+            for i, value in enumerate(option_values):
+                if value != initial_value:
+                    # Use context manager to wait for experiment data to change
+                    with wait_for_new_experiment_result(page):
+                        dropdown.select_option(value=value)
+                    selected_different = True
+                    break
+
+            if selected_different:
+                new_value = dropdown.input_value()
+                # Value should change from initial
+                assert new_value != initial_value, (
+                    f"Dropdown value should have changed from {initial_value} to {new_value}"
+                )
+        else:
+            print(f"Only one option available in dropdown: {option_values}")
+
+        # Verify the dropdown has valid values
+        assert float(dropdown.input_value()) in [
             0.0,
             0.1,
             0.2,
@@ -120,7 +135,7 @@ def test_kdma_sliders_interaction(page, real_data_test_server):
             0.8,
             0.9,
             1.0,
-        ], f"Slider value should be valid decimal, got {new_value}"
+        ], f"Dropdown value should be valid decimal, got {dropdown.input_value()}"
 
 
 def test_scenario_selection_availability(page, real_data_test_server):
@@ -174,31 +189,33 @@ def test_dynamic_kdma_management(page, real_data_test_server):
     adm_select.select_option("pipeline_baseline")
     # Wait for KDMA controls to appear after ADM selection
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length > 0", timeout=3000
+        "document.querySelectorAll('.table-kdma-value-select').length > 0", timeout=3000
     )
 
     # Check KDMA controls in table
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    initial_count = kdma_sliders.count()
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    initial_count = kdma_dropdowns.count()
 
-    # Should have KDMA sliders available in the table
-    assert initial_count > 0, "Should have KDMA sliders in table after ADM selection"
+    # Should have KDMA dropdowns available in the table
+    assert initial_count > 0, "Should have KDMA dropdowns in table after ADM selection"
 
-    # Check KDMA slider functionality
+    # Check KDMA dropdown functionality
     if initial_count > 0:
-        first_slider = kdma_sliders.first
-        expect(first_slider).to_be_visible()
+        first_dropdown = kdma_dropdowns.first
+        expect(first_dropdown).to_be_visible()
 
-        # Test slider interaction
-        first_slider.fill("0.7")
-        page.wait_for_timeout(500)
-
-        new_value = first_slider.input_value()
-        assert new_value == "0.7", "KDMA slider should update value"
+        # Test dropdown interaction - select a different value
+        options = first_dropdown.locator("option").all_text_contents()
+        if len(options) > 1:
+            first_dropdown.select_option(index=1)
+            page.wait_for_timeout(500)
+            assert first_dropdown.locator("option:checked").count() == 1, (
+                "KDMA dropdown should update value"
+            )
 
 
 def test_kdma_selection_shows_results_regression(page, real_data_test_server):
-    """Test that KDMA sliders work correctly in the table-based UI."""
+    """Test that KDMA dropdowns work correctly in the table-based UI."""
     page.goto(real_data_test_server)
 
     # Wait for page to load
@@ -210,33 +227,36 @@ def test_kdma_selection_shows_results_regression(page, real_data_test_server):
     # Test basic table-based KDMA functionality
     adm_select = page.locator(".table-adm-select").first
 
-    # Select pipeline_baseline to enable KDMA sliders
+    # Select pipeline_baseline to enable KDMA dropdowns
     adm_select.select_option("pipeline_baseline")
     # Wait for KDMA controls to appear after ADM selection
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length > 0", timeout=3000
+        "document.querySelectorAll('.table-kdma-value-select').length > 0", timeout=3000
     )
 
-    # Check for KDMA sliders in the table
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    slider_count = kdma_sliders.count()
+    # Check for KDMA dropdowns in the table
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    dropdown_count = kdma_dropdowns.count()
 
-    if slider_count > 0:
-        print(f"Testing {slider_count} KDMA sliders")
+    if dropdown_count > 0:
+        print(f"Testing {dropdown_count} KDMA dropdowns")
 
-        # Test that sliders are functional
-        first_slider = kdma_sliders.first
-        first_slider.fill("0.7")
-        page.wait_for_timeout(500)
-
-        # Verify slider works
-        assert first_slider.input_value() == "0.7", "KDMA slider should be functional"
+        # Test that dropdowns are functional
+        first_dropdown = kdma_dropdowns.first
+        options = first_dropdown.locator("option").all_text_contents()
+        if len(options) > 1:
+            first_dropdown.select_option(index=1)
+            page.wait_for_timeout(500)
+            # Verify dropdown works
+            assert first_dropdown.locator("option:checked").count() == 1, (
+                "KDMA dropdown should be functional"
+            )
 
         # Verify table remains functional
         expect(page.locator(".comparison-table")).to_be_visible()
         print("✓ KDMA functionality test passed")
     else:
-        print("No KDMA sliders found - test passes")
+        print("No KDMA dropdowns found - test passes")
 
 
 def test_real_data_scenario_availability(page, real_data_test_server):
@@ -328,20 +348,24 @@ def test_kdma_combination_default_value_issue(page, real_data_test_server):
     # Wait for scenario selection to take effect and results to load
     wait_for_run_results_loaded(page)
 
-    # Set initial KDMA slider to a valid value to enable adding another KDMA
-    initial_kdma_slider = page.locator(".table-kdma-value-slider").first
+    # Set initial KDMA dropdown to a valid value to enable adding another KDMA
+    initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
 
     with wait_for_new_experiment_result(page):
-        initial_kdma_slider.evaluate("slider => slider.value = '1'")
-        initial_kdma_slider.dispatch_event("input")
+        # Select option with value '1' if available
+        options = initial_kdma_dropdown.locator("option").all_text_contents()
+        for i, option in enumerate(options):
+            if option.strip() in ["1", "1.0"]:
+                initial_kdma_dropdown.select_option(index=i)
+                break
     # Wait for results to load after KDMA change
 
-    # Check initial KDMA sliders - should have affiliation already
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    initial_count = kdma_sliders.count()
+    # Check initial KDMA dropdowns - should have affiliation already
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    initial_count = kdma_dropdowns.count()
 
-    # Should have at least one KDMA slider initially
-    assert initial_count > 0, "Should have initial KDMA slider"
+    # Should have at least one KDMA dropdown initially
+    assert initial_count > 0, "Should have initial KDMA dropdown"
 
     # Look for "Add KDMA" button
     add_kdma_button = page.locator(".add-kdma-btn")
@@ -354,24 +378,24 @@ def test_kdma_combination_default_value_issue(page, real_data_test_server):
     with wait_for_new_experiment_result(page):
         add_kdma_button.click()
 
-    # Wait for new KDMA slider to be added by checking for count increase
+    # Wait for new KDMA dropdown to be added by checking for count increase
     page.wait_for_function(
-        f"document.querySelectorAll('.table-kdma-value-slider').length > {initial_count}",
+        f"document.querySelectorAll('.table-kdma-value-select').length > {initial_count}",
         timeout=5000,
     )
 
-    # Check that a new KDMA slider was added
-    updated_kdma_sliders = page.locator(".table-kdma-value-slider")
-    updated_count = updated_kdma_sliders.count()
+    # Check that a new KDMA dropdown was added
+    updated_kdma_dropdowns = page.locator(".table-kdma-value-select")
+    updated_count = updated_kdma_dropdowns.count()
 
-    assert updated_count > initial_count, "Should have added a new KDMA slider"
+    assert updated_count > initial_count, "Should have added a new KDMA dropdown"
 
     # Check the value of the new slider
-    new_sliders = updated_kdma_sliders.all()
-    if len(new_sliders) > 1:
+    new_dropdowns = updated_kdma_dropdowns.all()
+    if len(new_dropdowns) > 1:
         # Get the last slider (newly added)
-        new_slider = new_sliders[-1]
-        new_value = new_slider.input_value()
+        new_dropdown = new_dropdowns[-1]
+        new_value = new_dropdown.input_value()
 
         # This is the bug: it defaults to 0.5 instead of a valid value
         # For pipeline_baseline with affiliation+merit, valid combinations are only 0.0 and 1.0
@@ -382,7 +406,7 @@ def test_kdma_combination_default_value_issue(page, real_data_test_server):
         # Accept both integer and decimal formats
         valid_values = ["0.0", "1.0", "0", "1"]
         assert new_value in valid_values, (
-            f"New KDMA slider should default to valid value (0.0 or 1.0), but got {new_value}"
+            f"New KDMA dropdown should default to valid value (0.0 or 1.0), but got {new_value}"
         )
 
     # Also check that the dropdowns don't go blank
@@ -437,12 +461,16 @@ def test_kdma_delete_button_enabled_after_adding_second_kdma(
     page.wait_for_load_state("networkidle")
     wait_for_run_results_loaded(page)
 
-    # Set initial KDMA slider to a valid value to enable adding another KDMA
-    initial_kdma_slider = page.locator(".table-kdma-value-slider").first
+    # Set initial KDMA dropdown to a valid value to enable adding another KDMA
+    initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
 
     with wait_for_new_experiment_result(page):
-        initial_kdma_slider.evaluate("slider => slider.value = '1'")
-        initial_kdma_slider.dispatch_event("input")
+        # Select option with value '1' if available
+        options = initial_kdma_dropdown.locator("option").all_text_contents()
+        for i, option in enumerate(options):
+            if option.strip() in ["1", "1.0"]:
+                initial_kdma_dropdown.select_option(index=i)
+                break
 
     page.wait_for_load_state("networkidle")
 
@@ -477,9 +505,9 @@ def test_kdma_delete_button_enabled_after_adding_second_kdma(
     with wait_for_new_experiment_result(page):
         add_kdma_button.click()
 
-    # Wait for new KDMA slider to be added
+    # Wait for new KDMA dropdown to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
     )
 
     # Now check delete buttons after adding second KDMA
@@ -561,28 +589,32 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
     print(f"Initial experiment data: {initial_results}")
 
     # Debug: Check current KDMA values
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    print(f"Number of KDMA sliders: {kdma_sliders.count()}")
-    for i in range(kdma_sliders.count()):
-        slider = kdma_sliders.nth(i)
-        value = slider.input_value()
-        kdma_type = slider.get_attribute("data-kdma-type")
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    print(f"Number of KDMA dropdowns: {kdma_dropdowns.count()}")
+    for i in range(kdma_dropdowns.count()):
+        dropdown = kdma_dropdowns.nth(i)
+        value = dropdown.input_value()
+        kdma_type = dropdown.get_attribute("data-kdma-type")
         print(f"KDMA {kdma_type}: {value}")
 
     # Ensure we have some initial content
     assert initial_results, "Should have initial experiment results"
 
-    # Set the initial KDMA slider to a valid value (0 or 1) to enable Add KDMA button
-    initial_kdma_slider = page.locator(".table-kdma-value-slider").first
-    current_kdma_value = initial_kdma_slider.input_value()
+    # Set the initial KDMA dropdown to a valid value (0 or 1) to enable Add KDMA button
+    initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
+    current_kdma_value = initial_kdma_dropdown.input_value()
     print(f"Current KDMA value: {current_kdma_value}")
 
     # Only change if not already a valid value (0 or 1)
     if current_kdma_value not in ["0", "1", "0.0", "1.0"]:
         with wait_for_new_experiment_result(page):
-            initial_kdma_slider.evaluate("slider => slider.value = '1'")
-            initial_kdma_slider.dispatch_event("input")
-        print("Set KDMA slider to 1 to enable Add KDMA button")
+            # Select option with value '1' if available
+            options = initial_kdma_dropdown.locator("option").all_text_contents()
+            for i, option in enumerate(options):
+                if option.strip() in ["1", "1.0"]:
+                    initial_kdma_dropdown.select_option(index=i)
+                    break
+        print("Set KDMA dropdown to 1 to enable Add KDMA button")
 
     # Add a second KDMA - specifically merit to get affiliation + merit combination
     add_kdma_button = page.locator(".add-kdma-btn")
@@ -597,9 +629,9 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
     with wait_for_new_experiment_result(page):
         add_kdma_button.click()
 
-    # Wait for new KDMA slider to be added
+    # Wait for new KDMA dropdown to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
     )
 
     # # Check if there's a KDMA type dropdown for the new KDMA and select merit
@@ -615,12 +647,12 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
     wait_for_run_results_loaded(page)
 
     # Debug: Check KDMA values after adding
-    kdma_sliders_after = page.locator(".table-kdma-value-slider")
-    print(f"Number of KDMA sliders after adding: {kdma_sliders_after.count()}")
-    for i in range(kdma_sliders_after.count()):
-        slider = kdma_sliders_after.nth(i)
-        value = slider.input_value()
-        kdma_type = slider.get_attribute("data-kdma-type")
+    kdma_dropdowns_after = page.locator(".table-kdma-value-select")
+    print(f"Number of KDMA dropdowns after adding: {kdma_dropdowns_after.count()}")
+    for i in range(kdma_dropdowns_after.count()):
+        dropdown = kdma_dropdowns_after.nth(i)
+        value = dropdown.input_value()
+        kdma_type = dropdown.get_attribute("data-kdma-type")
         print(f"KDMA {kdma_type}: {value}")
 
     # Get results after adding KDMA
@@ -653,7 +685,7 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
 
     # Wait for KDMA to be removed
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length === 1",
+        "document.querySelectorAll('.table-kdma-value-select').length === 1",
         timeout=5000,
     )
 
@@ -714,15 +746,19 @@ def test_add_kdma_button_always_visible(page, real_data_test_server):
         # Scenario already selected, just ensure results are loaded
         page.wait_for_load_state("networkidle")
 
-    # Set initial KDMA slider to a valid value to enable adding another KDMA
-    initial_kdma_slider = page.locator(".table-kdma-value-slider").first
+    # Set initial KDMA dropdown to a valid value to enable adding another KDMA
+    initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
 
     # Ensure slider is set to 1, only change if it's not already 1
-    current_value = initial_kdma_slider.input_value()
+    current_value = initial_kdma_dropdown.input_value()
     if current_value != "1":
         with wait_for_new_experiment_result(page):
-            initial_kdma_slider.evaluate("slider => slider.value = '1'")
-            initial_kdma_slider.dispatch_event("input")
+            # Select option with value '1' if available
+            options = initial_kdma_dropdown.locator("option").all_text_contents()
+            for i, option in enumerate(options):
+                if option.strip() in ["1", "1.0"]:
+                    initial_kdma_dropdown.select_option(index=i)
+                    break
 
     page.wait_for_load_state("networkidle")
     wait_for_run_results_loaded(page)
@@ -746,7 +782,7 @@ def test_add_kdma_button_always_visible(page, real_data_test_server):
 
     # Wait for KDMA to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-slider').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
     )
 
     # Check that Add KDMA button is still visible

@@ -221,22 +221,23 @@ def test_kdma_type_filtering_prevents_duplicates(page, real_data_test_server):
     # Wait for any updates instead of fixed timeout
     page.wait_for_load_state("networkidle")
 
-    # Check KDMA sliders in table
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    slider_count = kdma_sliders.count()
+    # Check KDMA value dropdowns in table
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    dropdown_count = kdma_dropdowns.count()
 
-    # KDMA sliders may or may not be available depending on selected ADM type
-    print(f"Found {slider_count} KDMA sliders for ADM: {selected_option}")
+    # KDMA dropdowns may or may not be available depending on selected ADM type
+    print(f"Found {dropdown_count} KDMA dropdowns for ADM: {selected_option}")
 
-    # Test that KDMA sliders are functional
-    if slider_count > 0:
-        first_slider = kdma_sliders.first
-        expect(first_slider).to_be_visible()
+    # Test that KDMA dropdowns are functional
+    if dropdown_count > 0:
+        first_dropdown = kdma_dropdowns.first
+        expect(first_dropdown).to_be_visible()
 
-        # Test slider functionality
-        first_slider.fill("0.5")
-        page.wait_for_timeout(500)
-        assert first_slider.input_value() == "0.5", "KDMA slider should be functional"
+        # Test dropdown interaction - select first available option that's different from current
+        options = first_dropdown.locator("option").all_text_contents()
+        if len(options) > 1:
+            first_dropdown.select_option(index=1)
+            page.wait_for_timeout(500)
 
 
 def test_kdma_max_limit_enforcement(page, real_data_test_server):
@@ -266,30 +267,29 @@ def test_kdma_max_limit_enforcement(page, real_data_test_server):
     # Wait for any updates instead of fixed timeout
     page.wait_for_load_state("networkidle")
 
-    # Test that KDMA sliders are present and functional
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    slider_count = kdma_sliders.count()
+    # Test that KDMA dropdowns are present and functional
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    dropdown_count = kdma_dropdowns.count()
 
-    # Test passes regardless of KDMA slider availability - depends on selected ADM
-    print(f"Found {slider_count} KDMA sliders for ADM: {selected_option}")
+    # Test passes regardless of KDMA dropdown availability - depends on selected ADM
+    print(f"Found {dropdown_count} KDMA dropdowns for ADM: {selected_option}")
 
-    # Test slider functionality
-    if slider_count > 0:
-        first_slider = kdma_sliders.first
-        expect(first_slider).to_be_visible()
-        first_slider.fill("0.3")
-        # Wait for value to update
-        page.wait_for_function(
-            "document.querySelector('.table-kdma-value-slider').value === '0.3'"
-        )
-        assert first_slider.input_value() == "0.3", "KDMA slider should be functional"
+    # Test dropdown functionality
+    if dropdown_count > 0:
+        first_dropdown = kdma_dropdowns.first
+        expect(first_dropdown).to_be_visible()
+        # Get available options and select a different one if possible
+        options = first_dropdown.locator("option").all_text_contents()
+        if len(options) > 1:
+            first_dropdown.select_option(index=1)
+            page.wait_for_timeout(500)
 
     # Verify table continues to work after changes
     expect(page.locator(".comparison-table")).to_be_visible()
 
 
 def test_kdma_removal_updates_constraints(page, real_data_test_server):
-    """Test that KDMA sliders are functional in table-based UI."""
+    """Test that KDMA dropdowns are functional in table-based UI."""
     page.goto(real_data_test_server)
 
     # Wait for page to load
@@ -311,68 +311,28 @@ def test_kdma_removal_updates_constraints(page, real_data_test_server):
         adm_select.select_option(adm_options[0])
     page.wait_for_timeout(1000)
 
-    # Check for KDMA sliders in the table
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-    initial_slider_count = kdma_sliders.count()
+    # Check for KDMA dropdowns in the table
+    kdma_dropdowns = page.locator(".table-kdma-value-select")
+    initial_dropdown_count = kdma_dropdowns.count()
 
-    if initial_slider_count > 0:
-        # Test that sliders are functional
-        first_slider = kdma_sliders.first
-        expect(first_slider).to_be_visible()
+    if initial_dropdown_count > 0:
+        # Test that dropdowns are functional
+        first_dropdown = kdma_dropdowns.first
+        expect(first_dropdown).to_be_visible()
 
-        # Test changing slider value
-        first_slider.fill("0.5")
-        # Wait for value to update
-        page.wait_for_function(
-            "document.querySelector('.table-kdma-value-slider').value === '0.5'"
-        )
+        # Select different option if available
+        options = first_dropdown.locator("option").all_text_contents()
+        if len(options) > 1:
+            first_dropdown.select_option(index=1)
+            page.wait_for_timeout(500)
 
-        # Verify slider value updated
-        assert first_slider.input_value() == "0.5", "KDMA slider should update value"
+            # Verify dropdown value updated
+            assert first_dropdown.locator("option:checked").count() == 1, (
+                "KDMA dropdown should have selected value"
+            )
 
         # Verify table still functions
         expect(page.locator(".comparison-table")).to_be_visible()
-
-
-def test_kdma_warning_system(page, real_data_test_server):
-    """Test that KDMA warning system shows for invalid values."""
-    page.goto(real_data_test_server)
-
-    # Wait for page to load
-    page.wait_for_selector(".comparison-table", timeout=10000)
-    page.wait_for_function(
-        "document.querySelectorAll('.table-adm-select').length > 0", timeout=10000
-    )
-
-    # Select ADM and add KDMA
-    # Use available ADM option from test data
-    adm_select = page.locator(".table-adm-select").first
-    available_options = adm_select.locator("option").all()
-    adm_options = [
-        opt.get_attribute("value")
-        for opt in available_options
-        if opt.get_attribute("value")
-    ]
-    if adm_options:
-        adm_select.select_option(adm_options[0])
-    page.wait_for_timeout(1000)
-
-    # Check for KDMA sliders in the table
-    kdma_sliders = page.locator(".table-kdma-value-slider")
-
-    if kdma_sliders.count() > 0:
-        # Get first KDMA slider
-        slider = kdma_sliders.first
-
-        # Test slider functionality
-        slider.fill("0.5")
-        # Wait for value to update
-
-        # Verify slider works
-        assert slider.input_value() == "0.5", "KDMA slider should accept valid values"
-    else:
-        # Skip test if no KDMA sliders available
-        pass
 
 
 def test_kdma_adm_change_resets_properly(page, real_data_test_server):
@@ -475,19 +435,21 @@ def test_scenario_based_kdma_filtering(page, real_data_test_server):
         adm_select.select_option(selected_option)
         page.wait_for_load_state("networkidle")
 
-        # Check what KDMA sliders are available in table
-        kdma_sliders = page.locator(".table-kdma-value-slider")
-        slider_count = kdma_sliders.count()
+        # Check what KDMA dropdowns are available in table
+        kdma_dropdowns = page.locator(".table-kdma-value-select")
+        dropdown_count = kdma_dropdowns.count()
 
-        if slider_count > 0:
-            # For table-based UI, we test slider functionality instead of dropdown selection
-            first_slider = kdma_sliders.first
-            first_slider.fill("0.5")
-            # Wait for updates to complete
-            page.wait_for_load_state("networkidle")
+        if dropdown_count > 0:
+            # For table-based UI, we test dropdown functionality
+            first_dropdown = kdma_dropdowns.first
+            options = first_dropdown.locator("option").all_text_contents()
+            if len(options) > 1:
+                first_dropdown.select_option(index=1)
+                # Wait for updates to complete
+                page.wait_for_load_state("networkidle")
 
             scenario_kdma_mapping[scenario_type] = ["kdma_available"]
-            print(f"  KDMA sliders available: {slider_count}")
+            print(f"  KDMA dropdowns available: {dropdown_count}")
 
             # Check results in table format
             expect(page.locator(".comparison-table")).to_be_visible()

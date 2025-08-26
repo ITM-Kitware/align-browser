@@ -820,13 +820,13 @@ export function createSingleKDMAControlForRun(runId, kdmaType, value, pinnedRuns
         ).join('')}
       </select>
       
-      <input type="range" 
-             class="table-kdma-value-slider"
-             id="kdma-slider-${runId}-${kdmaType}"
-             min="${minVal}" max="${maxVal}" step="${step}" 
-             value="${value}"
-             oninput="handleRunKDMASliderInput('${runId}', '${kdmaType}', this)">
-      <span class="table-kdma-value-display" id="kdma-value-${runId}-${kdmaType}">${formatKDMAValue(value)}</span>
+      <select class="table-kdma-value-select"
+              id="kdma-value-${runId}-${kdmaType}"
+              onchange="handleRunKDMAValueChange('${runId}', '${kdmaType}', this.value)">
+        ${validValues.map(val => 
+          `<option value="${val}" ${Math.abs(val - value) < FLOATING_POINT_TOLERANCE ? 'selected' : ''}>${formatKDMAValue(val)}</option>`
+        ).join('')}
+      </select>
       
       <button class="table-kdma-remove-btn" 
               onclick="removeKDMAFromRun('${runId}', '${kdmaType}')" 

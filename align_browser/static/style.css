@@ -550,53 +550,15 @@ footer {
   box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
 }
 
-/* KDMA slider styling for table cells */
-.table-kdma-value-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  min-width: 50px;
-  width: 80px;
-  flex: 0 1 80px;
-  height: 4px;
-  background: #ddd;
-  outline: none;
-  opacity: 0.9;
-  transition: opacity 0.2s;
-  border-radius: 4px;
-}
-
-.table-kdma-value-slider:hover {
-  opacity: 1;
-}
-
-.table-kdma-value-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  background: var(--accent-color);
-  cursor: pointer;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.table-kdma-value-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: var(--accent-color);
-  cursor: pointer;
-  border-radius: 50%;
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.table-kdma-value-display {
-  min-width: 24px;
-  text-align: center;
-  color: #495057;
-  font-weight: 600;
-  font-size: 11px;
-  flex-shrink: 0;
+/* KDMA value dropdown styling for table cells */
+.table-kdma-value-select {
+  min-width: 80px;
+  padding: 2px 4px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background-color: white;
+  font-size: 12px;
+  flex: 0 1 auto;
 }
 
 /* Notification system styles */
