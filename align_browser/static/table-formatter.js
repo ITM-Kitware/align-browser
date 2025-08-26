@@ -458,13 +458,12 @@ export function createDropdownForRun(runId, currentValue, options, pinnedRuns) {
     return noOptionsMessage || HTML_NO_OPTIONS_SPAN;
   }
   
-  const sortedOptions = [...availableOptions].sort();
+  const sortedOptions = [...availableOptions];
   
   // Always include the current value even if it's not in the available options
   let currentValueIsInvalid = false;
   if (currentValue && !sortedOptions.includes(currentValue)) {
     sortedOptions.push(currentValue);
-    sortedOptions.sort();
     currentValueIsInvalid = true;
   }
   
