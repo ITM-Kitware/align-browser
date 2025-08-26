@@ -490,25 +490,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  window.handleRunKDMASliderInput = async function(runId, kdmaType, sliderElement) {
+  window.handleRunKDMAValueChange = async function(runId, kdmaType, value) {
     const run = appState.pinnedRuns.get(runId);
     if (!run) return;
     
-    const normalizedValue = KDMAUtils.normalizeValue(sliderElement.value);
+    const normalizedValue = KDMAUtils.normalizeValue(value);
     
-    // Update the display value immediately for responsiveness
-    const valueDisplay = document.getElementById(`kdma-value-${runId}-${kdmaType}`);
-    if (valueDisplay) {
-      valueDisplay.textContent = KDMAUtils.formatValue(normalizedValue);
-    }
-    
-    // Update the KDMA values with debouncing
+    // Update the KDMA values
     await updateKDMAsForRun(runId, (kdmas) => ({
       ...kdmas,
       [kdmaType]: normalizedValue
     }), {
-      updateURL: true,
-      debounceMs: KDMA_SLIDER_DEBOUNCE_MS // Debounce to avoid too many requests while sliding
+      updateURL: true
     });
   };
 
