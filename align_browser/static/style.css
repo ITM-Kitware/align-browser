@@ -152,23 +152,23 @@ footer {
   background: #fafafa;
 }
 
-.parameter-row[data-category="scene"],
-.parameter-row[data-category="scenario"],
-.parameter-row[data-category="adm_type"],
-.parameter-row[data-category="llm_backbone"] {
+.parameter-row[data-parameter="scene"],
+.parameter-row[data-parameter="scenario"],
+.parameter-row[data-parameter="adm_type"],
+.parameter-row[data-parameter="llm_backbone"] {
   background: rgba(0, 123, 255, 0.05);
 }
 
-.parameter-row[data-category="kdma_values"] {
+.parameter-row[data-parameter="kdma_values"] {
   background: rgba(220, 53, 69, 0.05);
 }
 
-.parameter-row[data-category="adm_decision"],
-.parameter-row[data-category="justification"] {
+.parameter-row[data-parameter="adm_decision"],
+.parameter-row[data-parameter="justification"] {
   background: rgba(40, 167, 69, 0.05);
 }
 
-.parameter-row[data-category="probe_time"] {
+.parameter-row[data-parameter="probe_time"] {
   background: rgba(255, 193, 7, 0.05);
 }
 
@@ -295,7 +295,7 @@ footer {
 }
 
 /* Make Raw Data section much taller for better JSON viewing */
-.parameter-row[data-category="input_output_json"] .object-display pre {
+.parameter-row[data-parameter="input_output_json"] .object-display pre {
   max-height: 400px;
   min-height: 200px;
 }
@@ -872,7 +872,7 @@ footer {
   color: #495057;
 }
 
-.parameter-row[data-category="choice_info"] {
+.parameter-row[data-parameter="choice_info"] {
   background: rgba(40, 167, 69, 0.08);
 }
 

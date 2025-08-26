@@ -661,7 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Update sync checkbox states and row visual indicators
     parameters.forEach((paramInfo, paramName) => {
-      const row = tbody.querySelector(`tr[data-category="${paramName}"]`);
+      const row = tbody.querySelector(`tr[data-parameter="${paramName}"]`);
       if (!row) return;
       
       // Update link state visual indicators
