@@ -3,18 +3,26 @@
 
 import { showWarning } from './notifications.js';
 
-// Centralized parameter mappings
-export const PARAMETER_MAPPINGS = {
-  // Maps validation API names back to internal names
-  API_TO_INTERNAL: {
-    'scenario': 'scenario',
-    'scene': 'scene',
-    'adm': 'admType',
-    'llm': 'llmBackbone',
-    'kdma_values': 'kdmaValues',
-    'run_variant': 'runVariant'
-  }
+export const API_TO_APP = {
+  'scenario': 'scenario',
+  'scene': 'scene',
+  'adm': 'admType',
+  'llm': 'llmBackbone',
+  'kdma_values': 'kdmaValues',
+  'run_variant': 'runVariant'
 };
+
+export const APP_TO_API = {
+  'scenario': 'scenario',
+  'scene': 'scene',
+  'admType': 'adm',
+  'llmBackbone': 'llm',
+  'kdmaValues': 'kdma_values',
+  'runVariant': 'run_variant'
+};
+
+// Priority order for parameter cascading
+export const PARAMETER_PRIORITY_ORDER = ['scenario', 'scene', 'kdma_values', 'adm', 'llm', 'run_variant'];
 
 // Constants for KDMA processing
 const KDMA_CONSTANTS = {
@@ -230,15 +238,6 @@ export function decodeStateFromURL() {
   return null;
 }
 
-// Configuration for parameter validation system
-export const PARAMETER_CONFIG = {
-  // Priority order for parameter cascading
-  PRIORITY_ORDER: ['scenario', 'scene', 'kdma_values', 'adm', 'llm', 'run_variant'],
-  
-  // Parameters that require special handling
-  SPECIAL_COMPARISON_PARAMS: new Set(['kdma_values'])
-};
-
 // Parameter update system with priority-based cascading
 const updateParametersBase = (priorityOrder) => (manifest) => (currentParams, changes) => {
   const newParams = { ...currentParams, ...changes };
@@ -260,15 +259,13 @@ const updateParametersBase = (priorityOrder) => (manifest) => (currentParams, ch
       
       // Only check constraint if the current selection has a non-null value for this parameter
       if (currentSelection[param] !== null && currentSelection[param] !== undefined) {
-        // Special handling for parameters that need custom comparison
-        if (PARAMETER_CONFIG.SPECIAL_COMPARISON_PARAMS.has(param)) {
-          if (param === 'kdma_values') {
-            const manifestKdmas = manifestEntry[param];
-            const selectionKdmas = currentSelection[param];
-            
-            if (!KDMAUtils.deepEqual(manifestKdmas, selectionKdmas)) {
-              return false;
-            }
+        // Special handling for kdma_values which needs deep comparison
+        if (param === 'kdma_values') {
+          const manifestKdmas = manifestEntry[param];
+          const selectionKdmas = currentSelection[param];
+          
+          if (!KDMAUtils.deepEqual(manifestKdmas, selectionKdmas)) {
+            return false;
           }
         } else if (manifestEntry[param] !== currentSelection[param]) {
           return false;
@@ -310,13 +307,11 @@ const updateParametersBase = (priorityOrder) => (manifest) => (currentParams, ch
     // Only change if current value is invalid
     let isValid = validOptions.includes(currentValue);
     
-    // For special parameters, use custom comparison logic
-    if (PARAMETER_CONFIG.SPECIAL_COMPARISON_PARAMS.has(param) && !isValid) {
-      if (param === 'kdma_values') {
-        isValid = validOptions.some(option => {
-          return KDMAUtils.deepEqual(option, currentValue);
-        });
-      }
+    // For kdma_values, use custom comparison logic
+    if (param === 'kdma_values' && !isValid) {
+      isValid = validOptions.some(option => {
+        return KDMAUtils.deepEqual(option, currentValue);
+      });
     }
     
     if (!isValid) {
@@ -338,7 +333,7 @@ const updateParametersBase = (priorityOrder) => (manifest) => (currentParams, ch
 };
 
 // Export updateParameters with priority order already curried
-export const updateParameters = updateParametersBase(PARAMETER_CONFIG.PRIORITY_ORDER);
+export const updateParameters = updateParametersBase(PARAMETER_PRIORITY_ORDER);
 
 export function toggleParameterLink(paramName, appState, callbacks) {
   if (appState.linkedParameters.has(paramName)) {

@@ -37,12 +37,12 @@ def test_linked_scenario_scene_cascade(page: Page, real_data_test_server: str):
     
     # Link both scenario and scene parameters
     scenario_row = page.locator("tr.parameter-row[data-parameter='scenario']")
-    scenario_link = scenario_row.locator(".link-icon")
+    scenario_link = scenario_row.locator(".link-toggle")
     scenario_link.click()
     page.wait_for_timeout(500)
     
     scene_row = page.locator("tr.parameter-row[data-parameter='scene']")  
-    scene_link = scene_row.locator(".link-icon")
+    scene_link = scene_row.locator(".link-toggle")
     scene_link.click()
     page.wait_for_timeout(500)
     
