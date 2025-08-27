@@ -47,6 +47,12 @@ footer {
   padding-bottom: 15px;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .table-header h2 {
   margin: 0;
   color: #495057;
@@ -339,6 +345,15 @@ footer {
 
 .btn-primary:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
 }
 
 
