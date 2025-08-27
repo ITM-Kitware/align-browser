@@ -14,7 +14,9 @@ import {
   getParameterValueFromRun,
   isParameterLinked,
   isResultParameter,
-  PARAMETER_CONFIG,
+  PARAMETER_PRIORITY_ORDER,
+  API_TO_APP,
+  APP_TO_API
 } from './state.js';
 
 import {
@@ -25,41 +27,38 @@ import {
   getValidKDMAsForRun
 } from './table-formatter.js';
 
-// Map state.js priority order (uses API names) to internal camelCase names
-const PARAMETER_PRIORITY_ORDER = PARAMETER_CONFIG.PRIORITY_ORDER.map(param => {
-  const mapping = {
-    'scenario': 'scenario',
-    'scene': 'scene',
-    'kdma_values': 'kdmaValues',
-    'adm': 'admType',
-    'llm': 'llmBackbone',
-    'run_variant': 'runVariant'
-  };
-  return mapping[param] || param;
-});
 
 // Generic function to preserve linked parameters after validation
-function preserveLinkedParameters(validatedParams, originalParams, appState, changedParam) {
-  const preserved = { ...validatedParams };
+// Takes snake_case params from API and returns mixed camelCase/snake_case for internal use
+function preserveLinkedParameters(validatedSnakeParams, originalCamelParams, appState, changedParamCamel) {
+  // Start with the validated params from API (in snake_case)
+  const preserved = { ...validatedSnakeParams };
   
-  // Get the priority index of the changed parameter
-  const changedIndex = PARAMETER_PRIORITY_ORDER.indexOf(changedParam);
+  // Convert changed param to snake_case for priority checking
+  const changedParamSnake = APP_TO_API[changedParamCamel] || changedParamCamel;
+  const changedIndex = PARAMETER_PRIORITY_ORDER.indexOf(changedParamSnake);
   
   // Only preserve linked parameters that are HIGHER priority than the changed parameter
-  // Lower priority linked parameters should cascade to valid values
-  PARAMETER_PRIORITY_ORDER.forEach((paramName, paramIndex) => {
-    if (isParameterLinked(paramName, appState)) {
+  PARAMETER_PRIORITY_ORDER.forEach((snakeParam, paramIndex) => {
+    const camelParam = API_TO_APP[snakeParam];
+    
+    if (camelParam && isParameterLinked(camelParam, appState)) {
       // Only preserve if this parameter has higher priority (lower index) than changed parameter
       // OR if it's the same parameter (to prevent it from being reset)
       if (paramIndex <= changedIndex) {
-        preserved[paramName] = originalParams[paramName];
+        // Get the original value using the camelCase key from originalCamelParams
+        preserved[snakeParam] = originalCamelParams[camelParam];
       }
       // Lower priority linked parameters will use the validated values
-      // WARNING: this may cause linked parameters to become out of sync across runs
     }
   });
   
-  return preserved;
+  // Convert back to camelCase format for internal use
+  const result = {};
+  Object.entries(APP_TO_API).forEach(([camelKey, snakeKey]) => {
+    result[camelKey] = preserved[snakeKey];
+  });
+  return result;
 }
 
 // CSV Download functionality
@@ -196,20 +195,9 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // For propagated updates of linked parameters, we need to validate and cascade lower priority params
     if (isPropagatedUpdate && isParameterLinked(paramType, appState)) {
-      // Get the corrected params with cascading for lower priority parameters
-      const kdmaValues = validParams.kdma_values || {};
-      
-      const correctedParams = {
-        scenario: validParams.scenario,
-        scene: validParams.scene,
-        admType: validParams.adm,
-        llmBackbone: validParams.llm,
-        kdmaValues: kdmaValues,
-        runVariant: validParams.run_variant
-      };
-      
       // Use the special preserveLinkedParameters that respects priority hierarchy
-      const finalParams = preserveLinkedParameters(correctedParams, params, appState, paramType);
+      // Pass the API params directly (snake_case) and original params (camelCase)
+      const finalParams = preserveLinkedParameters(validParams, params, appState, paramType);
       
       // Store the parameters with proper cascading
       columnParameters.set(runId, createParameterStructure(finalParams));
@@ -240,21 +228,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // For direct user updates (including on linked parameters), always validate for proper cascading
     // This ensures the source column gets valid parameter combinations
     
-    // For unlinked parameters, use validated parameters
-    const kdmaValues = validParams.kdma_values || {};
-    
-    const correctedParams = {
-      scenario: validParams.scenario,
-      scene: validParams.scene,
-      admType: validParams.adm,
-      llmBackbone: validParams.llm,
-      kdmaValues: kdmaValues,
-      runVariant: validParams.run_variant
-    };
-    
     // Preserve any linked parameters - they should not be changed by validation
     // Pass the changed parameter so we know which linked params to preserve vs cascade
-    const finalParams = preserveLinkedParameters(correctedParams, params, appState, paramType);
+    // Pass the API params directly (snake_case) and original params (camelCase)
+    const finalParams = preserveLinkedParameters(validParams, params, appState, paramType);
     
     // Store corrected parameters
     columnParameters.set(runId, createParameterStructure(finalParams));
@@ -735,12 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Update link state visual indicators
       const linkIcon = row.querySelector('.link-icon');
       // Map snake_case parameter names to camelCase for link checking
-      const linkParamName = {
-        'adm_type': 'admType',
-        'llm_backbone': 'llmBackbone', 
-        'run_variant': 'runVariant',
-        'kdma_values': 'kdmaValues'
-      }[paramName] || paramName;
+      const linkParamName = API_TO_APP[paramName] || paramName;
       
       if (isParameterLinked(linkParamName, appState)) {
         row.classList.add('linked');
