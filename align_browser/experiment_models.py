@@ -184,6 +184,8 @@ class InputOutputItem(BaseModel):
 
     input: InputData
     output: Optional[Dict[str, Any]] = None
+    choice_info: Optional[Dict[str, Any]] = None
+    label: Optional[List[Dict[str, Any]]] = None
     original_index: int  # Index in the original file
 
 

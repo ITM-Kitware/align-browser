@@ -67,6 +67,35 @@ def extract_justification(item: InputOutputItem) -> str:
     return action.get("justification", "")
 
 
+def extract_choice_info(item: InputOutputItem) -> str:
+    """Extract the choice_info as a JSON string, truncating ICL examples."""
+    if not item.choice_info:
+        return ""
+
+    import json
+
+    # Create a copy to avoid modifying the original
+    filtered_choice_info = {}
+
+    for key, value in item.choice_info.items():
+        if key == "icl_example_responses" and isinstance(value, dict):
+            # Keep only first example for each KDMA, truncate the rest
+            truncated_icl = {}
+            for kdma, examples in value.items():
+                if isinstance(examples, list) and len(examples) > 0:
+                    # Keep first example, replace rest with "truncated"
+                    truncated_icl[kdma] = [examples[0]]
+                    if len(examples) > 1:
+                        truncated_icl[kdma].append("truncated")
+                else:
+                    truncated_icl[kdma] = examples
+            filtered_choice_info[key] = truncated_icl
+        else:
+            filtered_choice_info[key] = value
+
+    return json.dumps(filtered_choice_info, separators=(",", ":"))
+
+
 def get_decision_time(
     timing_data: Optional[Dict[str, Any]], item_index: int
 ) -> Optional[float]:
@@ -156,6 +185,7 @@ def experiment_to_csv_rows(
             else "",
             "choice_text": extract_choice_text(item),
             "choice_kdma_association": extract_choice_kdma(item),
+            "choice_info": extract_choice_info(item),
             "justification": extract_justification(item),
             "decision_time_s": get_decision_time(timing_data, idx),
             "score": get_score(scores_data, idx),
@@ -188,6 +218,7 @@ def write_experiments_to_csv(
         "state_description",
         "choice_text",
         "choice_kdma_association",
+        "choice_info",
         "justification",
         "decision_time_s",
         "score",
