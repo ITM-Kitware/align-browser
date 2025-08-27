@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.0](https://github.com/ITM-Kitware/align-browser/compare/v0.7.0...v0.8.0) (2025-08-27)
+
+
+### Features
+
+* add choice_info field to CSV export with ICL truncation ([5d38414](https://github.com/ITM-Kitware/align-browser/commit/5d3841494fd5079b13e6362f73683f46595e9023))
+* add link parameters ([f2f6873](https://github.com/ITM-Kitware/align-browser/commit/f2f6873dd8caee2dea932174b04490cde313757f))
+* add scene_id column and fix choice_kdma_association formatting ([a926768](https://github.com/ITM-Kitware/align-browser/commit/a9267687b7aa5f2b71019dfaea1ebf0903670b82))
+* auto-expand ICL example prompts - remove Show More buttons ([fdf1178](https://github.com/ITM-Kitware/align-browser/commit/fdf1178c8a734c9439e0f038b3b7cecd8476e10c))
+
+
+### Bug Fixes
+
+* eliminate double rendering and add loading spinner ([23c72ed](https://github.com/ITM-Kitware/align-browser/commit/23c72ed9019b73a4d28e4c5f5873676b48b95fbd))
+* if scenario and scene linked, show valid experiment ([16b255f](https://github.com/ITM-Kitware/align-browser/commit/16b255fd384d453dfa1d507b52ae053345f7229a))
+* preserve Choice Info expansion state when changing parameters ([7ffe238](https://github.com/ITM-Kitware/align-browser/commit/7ffe23880742cd6eed93a4982529e38457ae9610))
+* remove alphabetical sorting from dropdown options to preserve natural ordering ([a9175c0](https://github.com/ITM-Kitware/align-browser/commit/a9175c07167f180efb9ea23752f7718646761868))
+
 ## [0.7.0](https://github.com/ITM-Kitware/align-browser/compare/v0.6.0...v0.7.0) (2025-07-31)
 
 
