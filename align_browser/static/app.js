@@ -43,6 +43,17 @@ function preserveLinkedParameters(validatedParams, originalParams, appState) {
   return preserved;
 }
 
+// CSV Download functionality
+function downloadCSV() {
+  const csvPath = './data/experiment_data.csv';
+  const link = document.createElement('a');
+  link.href = csvPath;
+  link.download = 'experiment_data.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   
   // UI state persistence for expandable content
@@ -1082,6 +1093,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const addColumnBtn = document.getElementById('add-column-btn');
   if (addColumnBtn) {
     addColumnBtn.addEventListener('click', copyColumn);
+  }
+
+  // Add CSV download button event listener
+  const downloadCsvBtn = document.getElementById('download-csv-btn');
+  if (downloadCsvBtn) {
+    downloadCsvBtn.addEventListener('click', downloadCSV);
   }
 
   // Initial manifest fetch on page load

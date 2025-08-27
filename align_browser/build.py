@@ -15,6 +15,7 @@ from align_browser.experiment_parser import (
     build_manifest_from_experiments,
     copy_experiment_files,
 )
+from align_browser.csv_exporter import write_experiments_to_csv
 
 
 def copy_static_assets(output_dir):
@@ -73,6 +74,10 @@ def build_frontend(
     # Save manifest in data subdirectory
     with open(data_output_dir / "manifest.json", "w") as f:
         json.dump(manifest.model_dump(), f, indent=2)
+
+    # Generate CSV export
+    csv_output_path = data_output_dir / "experiment_data.csv"
+    write_experiments_to_csv(experiments, experiments_root, csv_output_path)
 
     return output_dir
 
