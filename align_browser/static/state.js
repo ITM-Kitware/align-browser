@@ -231,7 +231,7 @@ export function decodeStateFromURL() {
 }
 
 // Configuration for parameter validation system
-const PARAMETER_CONFIG = {
+export const PARAMETER_CONFIG = {
   // Priority order for parameter cascading
   PRIORITY_ORDER: ['scenario', 'scene', 'kdma_values', 'adm', 'llm', 'run_variant'],
   
@@ -350,11 +350,8 @@ export function toggleParameterLink(paramName, appState, callbacks) {
     appState.linkedParameters.add(paramName);
     // When enabling link, propagate the leftmost column's value
     const firstRun = Array.from(appState.pinnedRuns.values())[0];
-    let propagationResult = null;
-    if (firstRun) {
-      const currentValue = getParameterValueFromRun(firstRun, paramName);
-      propagationResult = propagateParameterToAllRuns(paramName, currentValue, firstRun.id, appState, callbacks);
-    }
+    const currentValue = getParameterValueFromRun(firstRun, paramName);
+    const propagationResult = propagateParameterToAllRuns(paramName, currentValue, firstRun.id, appState, callbacks);
     callbacks.renderTable();
     callbacks.updateURL();
     return propagationResult;
