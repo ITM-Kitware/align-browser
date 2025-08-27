@@ -24,6 +24,15 @@ def format_kdma_config(kdma_values: List[Dict[str, Any]]) -> str:
     return ",".join(kdma_strings)
 
 
+def extract_scene_id(item: InputOutputItem) -> str:
+    """Extract the scene_id from an input/output item."""
+    if not item.input.full_state:
+        return ""
+
+    meta_info = item.input.full_state.get("meta_info", {})
+    return meta_info.get("scene_id", "")
+
+
 def extract_choice_text(item: InputOutputItem) -> str:
     """Extract the human-readable choice text from an input/output item."""
     if not item.output or "choice" not in item.output:
@@ -55,7 +64,16 @@ def extract_choice_kdma(item: InputOutputItem) -> str:
         return ""
 
     selected_choice = choices[choice_index]
-    return selected_choice.get("kdma_association", "")
+    kdma_association = selected_choice.get("kdma_association", "")
+
+    # Format the KDMA association dictionary as a string
+    if isinstance(kdma_association, dict) and kdma_association:
+        kdma_strings = []
+        for kdma_name, value in kdma_association.items():
+            kdma_strings.append(f"{kdma_name}:{value}")
+        return ",".join(kdma_strings)
+
+    return str(kdma_association) if kdma_association else ""
 
 
 def extract_justification(item: InputOutputItem) -> str:
@@ -180,6 +198,7 @@ def experiment_to_csv_rows(
             "kdma_config": kdma_config,
             "alignment_target_id": alignment_target_id,
             "scenario_id": item.input.scenario_id,
+            "scene_id": extract_scene_id(item),
             "state_description": item.input.state
             if hasattr(item.input, "state")
             else "",
@@ -215,9 +234,10 @@ def write_experiments_to_csv(
         "kdma_config",
         "alignment_target_id",
         "scenario_id",
+        "scene_id",
         "state_description",
-        "choice_text",
         "choice_kdma_association",
+        "choice_text",
         "choice_info",
         "justification",
         "decision_time_s",
