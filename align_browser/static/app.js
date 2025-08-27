@@ -14,6 +14,7 @@ import {
   getParameterValueFromRun,
   isParameterLinked,
   isResultParameter,
+  PARAMETER_CONFIG,
 } from './state.js';
 
 import {
@@ -24,21 +25,39 @@ import {
   getValidKDMAsForRun
 } from './table-formatter.js';
 
-// Constants
-const KDMA_SLIDER_DEBOUNCE_MS = 500;
+// Map state.js priority order (uses API names) to internal camelCase names
+const PARAMETER_PRIORITY_ORDER = PARAMETER_CONFIG.PRIORITY_ORDER.map(param => {
+  const mapping = {
+    'scenario': 'scenario',
+    'scene': 'scene',
+    'kdma_values': 'kdmaValues',
+    'adm': 'admType',
+    'llm': 'llmBackbone',
+    'run_variant': 'runVariant'
+  };
+  return mapping[param] || param;
+});
 
 // Generic function to preserve linked parameters after validation
-function preserveLinkedParameters(validatedParams, originalParams, appState) {
+function preserveLinkedParameters(validatedParams, originalParams, appState, changedParam) {
   const preserved = { ...validatedParams };
   
-  // Iterate through all possible linked parameters
-  const linkableParams = ['scenario', 'scene', 'admType', 'llmBackbone', 'kdmaValues', 'runVariant'];
-  for (const paramName of linkableParams) {
+  // Get the priority index of the changed parameter
+  const changedIndex = PARAMETER_PRIORITY_ORDER.indexOf(changedParam);
+  
+  // Only preserve linked parameters that are HIGHER priority than the changed parameter
+  // Lower priority linked parameters should cascade to valid values
+  PARAMETER_PRIORITY_ORDER.forEach((paramName, paramIndex) => {
     if (isParameterLinked(paramName, appState)) {
-      // Preserve the original value for linked parameters
-      preserved[paramName] = originalParams[paramName];
+      // Only preserve if this parameter has higher priority (lower index) than changed parameter
+      // OR if it's the same parameter (to prevent it from being reset)
+      if (paramIndex <= changedIndex) {
+        preserved[paramName] = originalParams[paramName];
+      }
+      // Lower priority linked parameters will use the validated values
+      // WARNING: this may cause linked parameters to become out of sync across runs
     }
-  }
+  });
   
   return preserved;
 }
@@ -175,18 +194,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const validParams = result.params;
     const validOptions = result.options;
     
-    // For propagated updates of linked parameters, use raw values without validation
+    // For propagated updates of linked parameters, we need to validate and cascade lower priority params
     if (isPropagatedUpdate && isParameterLinked(paramType, appState)) {
-      // Use the raw params values (don't validate for propagated linked parameters)
-      columnParameters.set(runId, createParameterStructure(params));
+      // Get the corrected params with cascading for lower priority parameters
+      const kdmaValues = validParams.kdma_values || {};
       
-      // Update the actual run state with raw values
-      run.scenario = params.scenario;
-      run.scene = params.scene;
-      run.admType = params.admType;
-      run.llmBackbone = params.llmBackbone;
-      run.runVariant = params.runVariant;
-      run.kdmaValues = params.kdmaValues;
+      const correctedParams = {
+        scenario: validParams.scenario,
+        scene: validParams.scene,
+        admType: validParams.adm,
+        llmBackbone: validParams.llm,
+        kdmaValues: kdmaValues,
+        runVariant: validParams.run_variant
+      };
+      
+      // Use the special preserveLinkedParameters that respects priority hierarchy
+      const finalParams = preserveLinkedParameters(correctedParams, params, appState, paramType);
+      
+      // Store the parameters with proper cascading
+      columnParameters.set(runId, createParameterStructure(finalParams));
+      
+      // Update the actual run state
+      run.scenario = finalParams.scenario;
+      run.scene = finalParams.scene;
+      run.admType = finalParams.admType;
+      run.llmBackbone = finalParams.llmBackbone;
+      run.runVariant = finalParams.runVariant;
+      run.kdmaValues = finalParams.kdmaValues;
       
       // Store the updated available options for UI dropdowns
       run.availableOptions = {
@@ -200,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       };
       
-      return params; // Return the raw params for propagated linked parameters
+      return finalParams; // Return the params with proper cascading
     }
     
     // For direct user updates (including on linked parameters), always validate for proper cascading
@@ -219,7 +253,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     // Preserve any linked parameters - they should not be changed by validation
-    const finalParams = preserveLinkedParameters(correctedParams, params, appState);
+    // Pass the changed parameter so we know which linked params to preserve vs cascade
+    const finalParams = preserveLinkedParameters(correctedParams, params, appState, paramType);
     
     // Store corrected parameters
     columnParameters.set(runId, createParameterStructure(finalParams));

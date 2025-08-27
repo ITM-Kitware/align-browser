@@ -4,6 +4,8 @@
 - Use the uv created .venv when trying to run python code or python tests
 - Use semantic versioning commit messages
 - After you make non trival changes, run ruff linting, then ruff formating, then the tests
+- Always use semantic commit messages.
+- To build the frontend, always run from project root: `uv run python align_browser/build.py experiment-data/test-experiments --output-dir align_browser/static --build-only`
 
 ## Testing
 
