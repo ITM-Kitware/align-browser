@@ -1,0 +1,63 @@
+name: Build and Deploy to Netlify
+
+on:
+  # Trigger from align-data repository webhook
+  repository_dispatch:
+    types: [align-data-update]
+  
+  # Allow manual trigger with optional inputs
+  workflow_dispatch:
+    inputs:
+      data_branch:
+        description: 'Branch of align-data to use'
+        required: false
+        default: 'main'
+      deploy_message:
+        description: 'Deploy message'
+        required: false
+        default: 'Manual deployment'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout align-browser
+        uses: actions/checkout@v3
+        
+      - name: Checkout align-data with LFS
+        uses: actions/checkout@v3
+        with:
+          repository: PaulHax/align-data
+          path: align-data
+          ref: ${{ github.event.inputs.data_branch || 'main' }}
+          lfs: true
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv pip install --system -e .
+          
+      - name: Build site
+        run: |
+          python align_browser/build.py align-data/align_data/data/evaluation-outputs \
+            --output-dir align-browser-site --build-only
+            
+      - name: Deploy to Netlify
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=align-browser-site --prod --message "${{ github.event.inputs.deploy_message || 'Automated deployment from align-data update' }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      
+      - name: Comment deployment URL
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to Netlify"
+          echo "Deploy message: ${{ github.event.inputs.deploy_message || 'Automated deployment' }}"
