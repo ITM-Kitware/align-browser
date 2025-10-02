@@ -491,11 +491,6 @@ class Manifest(BaseModel):
                 meta_info = item.input.full_state.get("meta_info", {})
                 if isinstance(meta_info, dict):
                     scene_id = meta_info.get("scene_id", f"scene_{source_index}")
-                    scene_id = (
-                        str(scene_id)
-                        if scene_id is not None
-                        else f"scene_{source_index}"
-                    )
 
             if scenario_id not in scenarios_dict:
                 scores_path = None
