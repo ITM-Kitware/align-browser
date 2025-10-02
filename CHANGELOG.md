@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1](https://github.com/ITM-Kitware/align-browser/compare/v0.8.0...v0.8.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* **experiment_models:** support init in scene_id ([2c6d444](https://github.com/ITM-Kitware/align-browser/commit/2c6d44488e148fea181c2a9ee0a697d23a111d37))
+* increase wait_for_new_experiment_result timeout for CI stability ([350b4ce](https://github.com/ITM-Kitware/align-browser/commit/350b4ce1147bbc5ed5ca6497b13fe330e5ee0ee6))
+* resolve CI test failures by removing race conditions ([2041241](https://github.com/ITM-Kitware/align-browser/commit/2041241101aafd9b13620d0ef1667c9830b04f67))
+
 ## [0.8.0](https://github.com/ITM-Kitware/align-browser/compare/v0.7.0...v0.8.0) (2025-08-27)
 
 
