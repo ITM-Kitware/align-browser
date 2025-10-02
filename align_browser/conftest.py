@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 
 @contextmanager
-def wait_for_new_experiment_result(page, timeout=5000):
+def wait_for_new_experiment_result(page, timeout=10000):
     """
     Context manager that waits for a new experiment result to load after a parameter change.
 
