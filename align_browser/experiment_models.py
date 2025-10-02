@@ -5,8 +5,8 @@ import yaml
 import hashlib
 import os
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field, ConfigDict
 
 
 def calculate_file_checksum(file_path: Path) -> str:
@@ -367,13 +367,8 @@ class SceneInfo(BaseModel):
     """Information about a scene within a scenario."""
 
     source_index: int  # Index in the source input_output.json file
-    scene_id: str  # Scene ID from meta_info.scene_id
+    scene_id: Union[str, int]  # Scene ID from meta_info.scene_id (can be str or int)
     timing_s: float  # Timing from timing.json raw_times_s[source_index]
-
-    @field_validator("scene_id", mode="before")
-    @classmethod
-    def convert_scene_id_to_str(cls, v):
-        return str(v) if isinstance(v, int) else v
 
 
 class InputOutputFileInfo(BaseModel):
