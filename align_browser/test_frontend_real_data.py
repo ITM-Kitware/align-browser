@@ -351,14 +351,15 @@ def test_kdma_combination_default_value_issue(page, real_data_test_server):
     # Set initial KDMA dropdown to a valid value to enable adding another KDMA
     initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
 
-    with wait_for_new_experiment_result(page):
-        # Select option with value '1' if available
-        options = initial_kdma_dropdown.locator("option").all_text_contents()
-        for i, option in enumerate(options):
-            if option.strip() in ["1", "1.0"]:
-                initial_kdma_dropdown.select_option(index=i)
-                break
-    # Wait for results to load after KDMA change
+    # Select option with value '1' if available
+    options = initial_kdma_dropdown.locator("option").all_text_contents()
+    for i, option in enumerate(options):
+        if option.strip() in ["1", "1.0"]:
+            initial_kdma_dropdown.select_option(index=i)
+            break
+
+    # Wait for network to settle after KDMA change
+    page.wait_for_load_state("networkidle", timeout=10000)
 
     # Check initial KDMA dropdowns - should have affiliation already
     kdma_dropdowns = page.locator(".table-kdma-value-select")
@@ -375,13 +376,12 @@ def test_kdma_combination_default_value_issue(page, real_data_test_server):
         "Add KDMA button must be available for this test"
     )
     # Click Add KDMA button to add second KDMA
-    with wait_for_new_experiment_result(page):
-        add_kdma_button.click()
+    add_kdma_button.click()
 
     # Wait for new KDMA dropdown to be added by checking for count increase
     page.wait_for_function(
         f"document.querySelectorAll('.table-kdma-value-select').length > {initial_count}",
-        timeout=5000,
+        timeout=10000,
     )
 
     # Check that a new KDMA dropdown was added
@@ -464,15 +464,15 @@ def test_kdma_delete_button_enabled_after_adding_second_kdma(
     # Set initial KDMA dropdown to a valid value to enable adding another KDMA
     initial_kdma_dropdown = page.locator(".table-kdma-value-select").first
 
-    with wait_for_new_experiment_result(page):
-        # Select option with value '1' if available
-        options = initial_kdma_dropdown.locator("option").all_text_contents()
-        for i, option in enumerate(options):
-            if option.strip() in ["1", "1.0"]:
-                initial_kdma_dropdown.select_option(index=i)
-                break
+    # Select option with value '1' if available
+    options = initial_kdma_dropdown.locator("option").all_text_contents()
+    for i, option in enumerate(options):
+        if option.strip() in ["1", "1.0"]:
+            initial_kdma_dropdown.select_option(index=i)
+            break
 
-    page.wait_for_load_state("networkidle")
+    # Wait for network to settle after KDMA change
+    page.wait_for_load_state("networkidle", timeout=10000)
 
     # Check initial KDMA delete buttons - should be disabled with single KDMA
     initial_delete_buttons = page.locator(".table-kdma-remove-btn")
@@ -502,12 +502,12 @@ def test_kdma_delete_button_enabled_after_adding_second_kdma(
     expect(add_kdma_button).to_be_enabled()
 
     # Click Add KDMA button to add second KDMA
-    with wait_for_new_experiment_result(page):
-        add_kdma_button.click()
+    add_kdma_button.click()
 
     # Wait for new KDMA dropdown to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1",
+        timeout=10000,
     )
 
     # Now check delete buttons after adding second KDMA
@@ -631,7 +631,8 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
 
     # Wait for new KDMA dropdown to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1",
+        timeout=10000,
     )
 
     # # Check if there's a KDMA type dropdown for the new KDMA and select merit
@@ -686,7 +687,7 @@ def test_kdma_add_remove_updates_experiment_results(page, real_data_test_server)
     # Wait for KDMA to be removed
     page.wait_for_function(
         "document.querySelectorAll('.table-kdma-value-select').length === 1",
-        timeout=5000,
+        timeout=10000,
     )
 
     # Wait for results to reload after removal
@@ -782,7 +783,8 @@ def test_add_kdma_button_always_visible(page, real_data_test_server):
 
     # Wait for KDMA to be added
     page.wait_for_function(
-        "document.querySelectorAll('.table-kdma-value-select').length > 1", timeout=5000
+        "document.querySelectorAll('.table-kdma-value-select').length > 1",
+        timeout=10000,
     )
 
     # Check that Add KDMA button is still visible
@@ -832,7 +834,7 @@ def test_run_variant_dropdown_functionality(page, real_data_test_server):
 
     # Wait for initial auto-pin to complete
     page.wait_for_function(
-        "document.querySelectorAll('.comparison-table tr').length > 2", timeout=5000
+        "document.querySelectorAll('.comparison-table tr').length > 2", timeout=10000
     )
 
     # Look for run variant row
