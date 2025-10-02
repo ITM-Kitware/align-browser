@@ -6,7 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 def calculate_file_checksum(file_path: Path) -> str:
@@ -363,13 +363,17 @@ class ExperimentData(BaseModel):
         return all((experiment_dir / f).exists() for f in required_files)
 
 
-# Enhanced Manifest Models for New Structure
 class SceneInfo(BaseModel):
     """Information about a scene within a scenario."""
 
     source_index: int  # Index in the source input_output.json file
     scene_id: str  # Scene ID from meta_info.scene_id
     timing_s: float  # Timing from timing.json raw_times_s[source_index]
+
+    @field_validator("scene_id", mode="before")
+    @classmethod
+    def convert_scene_id_to_str(cls, v):
+        return str(v) if isinstance(v, int) else v
 
 
 class InputOutputFileInfo(BaseModel):
@@ -487,6 +491,11 @@ class Manifest(BaseModel):
                 meta_info = item.input.full_state.get("meta_info", {})
                 if isinstance(meta_info, dict):
                     scene_id = meta_info.get("scene_id", f"scene_{source_index}")
+                    scene_id = (
+                        str(scene_id)
+                        if scene_id is not None
+                        else f"scene_{source_index}"
+                    )
 
             if scenario_id not in scenarios_dict:
                 scores_path = None
